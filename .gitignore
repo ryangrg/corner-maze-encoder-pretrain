@@ -1,0 +1,29 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.env/
+.venv/
+env/
+venv/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# PyTorch checkpoints, logs
+checkpoints/
+*.pth
+*.pt
+logs/
+
+# IDE artifacts
+.idea/
+.vscode/
+.DS_Store
+
+# Local datasets or generated assets
+outputs/
