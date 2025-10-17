@@ -35,6 +35,10 @@ The `data/` directory lives in the repo with placeholder `.gitkeep` files so col
 3. **Run encoder pretraining**  
    Training entry points will live under `src/` and will expose CLI interfaces for experimenting with different tensor layouts (e.g., concatenated eye channels vs. spatial stacking).
 
+## Current Utilities
+- `src/image_stack.py` loads stereo PNG pairs, converts them to blurred grayscale tensors, mirrors the right eye, and stacks them into `(pairs, 2, H, W)` PyTorch tensors. It also exposes `visualize_stereo_pair` for quick overlays (left eye tinted blue, right eye red).
+- `notebooks/image_stack.ipynb` offers a notebook version of the same pipeline for interactive exploration (you may need to reload the notebook after code updates).
+
 ## Experimental Roadmap
 - Compare latent spaces produced by CNN encoders with variants that exploit stereo correspondences (e.g., Siamese branches, shared weights, or 3D convolutions).
 - Benchmark contrastive objectives (InfoNCE, triplet loss) against classification-style supervision for pose identification.
