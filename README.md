@@ -36,7 +36,7 @@ The `data/` directory lives in the repo with placeholder `.gitkeep` files so col
    Training entry points will live under `src/` and will expose CLI interfaces for experimenting with different tensor layouts (e.g., concatenated eye channels vs. spatial stacking).
 
 ## Current Utilities
-- `src/image_stack.py` loads stereo PNG pairs, converts them to blurred grayscale tensors, mirrors the right eye, and stacks them into `(pairs, 2, H, W)` PyTorch tensors. It also exposes `visualize_stereo_pair` for quick overlays (left eye tinted blue, right eye red).
+- `src/image_stack.py` loads stereo PNG pairs, converts them to blurred grayscale tensors, mirrors the right eye, and stacks them into `(pairs, 2, H, W)` PyTorch tensors, with helpers `visualize_stereo_pair` (single overlay), `stereo_pair_display` (interactive grid + arrows), and `group_similar_stereo_pairs` (duplicate detection with png_compare-style tolerances).
 - `notebooks/image_stack.ipynb` offers a notebook version of the same pipeline for interactive exploration (you may need to reload the notebook after code updates).
 
 ## Experimental Roadmap
