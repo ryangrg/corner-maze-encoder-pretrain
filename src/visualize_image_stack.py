@@ -944,14 +944,14 @@ def group_similar_stereo_pairs(
 
 if __name__ == "__main__":
     bundle_path = Path(
-        "/Users/ryangrgurich/VS Code Local/corner-maze-encoder-pretrain/data/pt-files/all-views-dataset.pt"
+        "/Users/ryangrgurich/VS Code Local/corner-maze-encoder-pretrain/data/pt-files/deduplicated-test-dataset.pt"
     )
     stack, metadata, meta_info = load_dataset_bundle(bundle_path)
     print(f"Loaded dataset from {bundle_path.expanduser().resolve()}")
     print("Image stack shape:", tuple(stack.shape))
     if meta_info:
         print(f"Bundle meta: {meta_info}")
-    stereo_pair_display(stack, metadata, view_mode='single', direction='N')
+    stereo_pair_display(stack, metadata, view_mode='multi', direction='N')
     # similar_pairs = group_similar_stereo_pairs(stack, metadata, 10, 0.5)
     # for group in similar_pairs:
     #     print(group)
