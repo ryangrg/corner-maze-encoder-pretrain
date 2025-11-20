@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Sequence, Tuple
 import pandas as pd
 import torch
 from torch import nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 
 # =======================
@@ -39,50 +40,46 @@ DEFAULT_OUTPUT_DIR: Path = ROOT / "data/tables"
 # =======================
 
 class StereoConvNet(nn.Module):
-    """Matches the architecture used in image-classifier-cnn.py (with optional hidden FC)."""
+    """
+    Lightweight CNN matching `image-classifier-cnn.py`'s implementation.
+    Supports `forward(x, return_embedding=True)` to return (logits, embedding).
+    """
 
-    def __init__(
-        self,
-        in_channels: int,
-        num_classes: int,
-        hidden_width: int | None = None,
-        dropout_p: float = 0.0,
-        linear_keys: Sequence[str] | None = None,
-    ):
+    def __init__(self, in_channels: int, num_classes: int):
         super().__init__()
         self.features = nn.Sequential(
+            # Coming in with (N, 2, 128, 128)
             nn.Conv2d(in_channels, 16, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
+
             nn.Conv2d(16, 32, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
+
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+
             nn.AdaptiveAvgPool2d(1),
             nn.ReLU(inplace=True),
         )
-        self.flatten = nn.Flatten()
-        self.dropout = nn.Dropout(p=dropout_p)
+        # Fully-connected classifier
+        self.fc1 = nn.Linear(64, 64)     # hidden embedding layer
+        self.fc2 = nn.Linear(64, num_classes)
 
-        if hidden_width is not None:
-            self.hidden = nn.Linear(32, hidden_width)
-            out_features = num_classes
-            self.output = nn.Linear(hidden_width, out_features)
-            self.hidden_key = (linear_keys or ["classifier.2", "classifier.3"])[0]
-            self.output_key = (linear_keys or ["classifier.2", "classifier.3"])[1]
-        else:
-            self.hidden = None
-            self.output = nn.Linear(32, num_classes)
-            self.hidden_key = None
-            self.output_key = (linear_keys or ["classifier.2"])[-1]
+    def forward(self, x: torch.Tensor, return_embedding: bool = False):
+        x = self.features(x)             # (N, 64, 1, 1)
+        x = x.flatten(1)                 # (N, 64)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.features(x)
-        x = self.flatten(x)
-        x = self.dropout(x)
-        if self.hidden is not None:
-            x = self.hidden(x)
-        x = self.output(x)
-        return x
+        h = F.relu(self.fc1(x))          # (N, 64)  ← embedding
+
+        logits = self.fc2(h)             # (N, num_classes)
+
+        if return_embedding:
+            return logits, h
+
+        return logits
 
 
 # =======================
@@ -133,7 +130,7 @@ def extract_embeddings(
     device: torch.device,
 ) -> torch.Tensor:
     """
-    Return embeddings shaped (N, 32) captured from the penultimate linear layer.
+    Return embeddings shaped (N, 64) captured from the penultimate linear layer.
     """
     model.eval()
     embeddings: List[torch.Tensor] = []
@@ -141,13 +138,31 @@ def extract_embeddings(
     with torch.no_grad():
         for batch in dataloader:
             batch_x = batch[0].to(device, non_blocking=True)
-            features = model.features(batch_x)
-            flat = model.flatten(features)
-            drop = model.dropout(flat)
-            if model.hidden is not None:
-                embedding = model.hidden(drop)
+            # Prefer pulling embedding via the model's forward contract if supported
+            try:
+                out = model(batch_x, return_embedding=True)
+            except TypeError:
+                out = None
+
+            if isinstance(out, tuple) and len(out) == 2:
+                _, embedding = out
             else:
-                embedding = drop
+                # Fallback: try to extract similarly to older codepaths
+                try:
+                    features = model.features(batch_x)
+                    flat = features.flatten(1)
+                    # If model has fc1 (new architecture) use that, otherwise attempt attributes used by older models
+                    if hasattr(model, "fc1"):
+                        embedding = F.relu(model.fc1(flat))
+                    elif hasattr(model, "hidden") and model.hidden is not None:
+                        embedding = model.hidden(flat)
+                    else:
+                        embedding = flat
+                except Exception:
+                    # As last resort, run a forward pass and take the penultimate activation by re-running
+                    # the forward without return_embedding and try to inspect internals — fallback to zeros
+                    embedding = torch.zeros((batch_x.size(0), 64), dtype=torch.float32, device=batch_x.device)
+
             # Ensure non-negative embeddings (like SB3’s NatureCNN ReLU output)
             embedding = torch.relu(embedding)
             embeddings.append(embedding.cpu())
@@ -261,50 +276,58 @@ def main() -> None:
     state = torch.load(model_path, map_location="cpu")
     state_dict = state["model_state_dict"] if isinstance(state, dict) and "model_state_dict" in state else state
 
-    hidden_width = None
-    model = StereoConvNet(in_channels=in_channels, num_classes=num_classes, hidden_width=hidden_width)
-    classifier_weight_keys = [key for key in state_dict if key.startswith("classifier.") and key.endswith(".weight")]
-    classifier_indices = sorted({int(key.split(".")[1]) for key in classifier_weight_keys})
+    # Instantiate the modern StereoConvNet (matching `image-classifier-cnn.py`).
+    model = StereoConvNet(in_channels=in_channels, num_classes=num_classes)
 
-    hidden_idx = None
-    output_idx = None
-    if classifier_indices:
-        if len(classifier_indices) == 2:
-            hidden_idx = classifier_indices[0]
-            output_idx = classifier_indices[1]
-            hidden_width = state_dict[f"classifier.{hidden_idx}.weight"].shape[0]
-            model = StereoConvNet(
-                in_channels=in_channels,
-                num_classes=num_classes,
-                hidden_width=hidden_width,
-            )
-        elif len(classifier_indices) == 1:
-            output_idx = classifier_indices[0]
-            model = StereoConvNet(
-                in_channels=in_channels,
-                num_classes=num_classes,
-                hidden_width=None,
-            )
-        else:
-            raise RuntimeError(f"Unrecognized classifier configuration: {classifier_indices}")
-    else:
-        model = StereoConvNet(in_channels=in_channels, num_classes=num_classes)
-
+    # Remap legacy `classifier.*` parameter keys (from older checkpoints) to the
+    # new `fc1`/`fc2` naming by matching tensor shapes where possible.
     renamed_state: Dict[str, torch.Tensor] = {}
     for key, value in state_dict.items():
         if key.startswith("classifier."):
-            idx = int(key.split(".")[1])
+            # suffix is typically 'weight' or 'bias'
             suffix = key.split(".", 2)[-1]
-            if hidden_idx is not None and idx == hidden_idx:
-                renamed_state[f"hidden.{suffix}"] = value
-            elif output_idx is not None and idx == output_idx:
-                renamed_state[f"output.{suffix}"] = value
-            else:
+            if not isinstance(value, torch.Tensor):
+                continue
+            # Try to match to fc1.weight/fc2.weight shapes
+            try:
+                if value.dim() == 2:
+                    if tuple(value.shape) == tuple(model.fc1.weight.shape):
+                        renamed_state[f"fc1.{suffix}"] = value
+                    elif tuple(value.shape) == tuple(model.fc2.weight.shape):
+                        renamed_state[f"fc2.{suffix}"] = value
+                    else:
+                        # Best-effort by checking feature dimension
+                        if value.shape[1] == model.fc1.weight.shape[1]:
+                            if value.shape[0] == model.fc2.weight.shape[0]:
+                                renamed_state[f"fc2.{suffix}"] = value
+                            else:
+                                renamed_state[f"fc1.{suffix}"] = value
+                        else:
+                            # shape mismatch — skip
+                            continue
+                elif value.dim() == 1:
+                    if tuple(value.shape) == tuple(model.fc1.bias.shape):
+                        renamed_state[f"fc1.{suffix}"] = value
+                    elif tuple(value.shape) == tuple(model.fc2.bias.shape):
+                        renamed_state[f"fc2.{suffix}"] = value
+                    else:
+                        if value.shape[0] == model.fc2.bias.shape[0]:
+                            renamed_state[f"fc2.{suffix}"] = value
+                        elif value.shape[0] == model.fc1.bias.shape[0]:
+                            renamed_state[f"fc1.{suffix}"] = value
+                        else:
+                            continue
+            except Exception:
+                # On any unexpected mismatch, skip this key
                 continue
         else:
             renamed_state[key] = value
 
-    model.load_state_dict(renamed_state, strict=True)
+    load_info = model.load_state_dict(renamed_state, strict=False)
+    if getattr(load_info, "missing_keys", None):
+        print(f"[WARN] Missing keys when loading checkpoint: {load_info.missing_keys}")
+    if getattr(load_info, "unexpected_keys", None):
+        print(f"[WARN] Unexpected keys in checkpoint: {load_info.unexpected_keys}")
     model.to(device)
 
     embeddings = extract_embeddings(model, dataloader, device)

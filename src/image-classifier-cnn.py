@@ -5,7 +5,7 @@ image-classifier.py
 Train a compact VGG-style convolutional network (three Conv2d→ReLU blocks,
 global average pooling, fully connected classifier) on a serialized stereo
 dataset bundle (.pt file produced by create_dataset.py or remove_duplicates.py),
-optimizing directly on the training set until it memorises every sample
+optimizing directly on the training set until it memorizes every sample
 (100% accuracy) or a maximum epoch budget is reached.
 """
 
