@@ -10,7 +10,6 @@ pipelines can align feature vectors or embeddings.
 
 from __future__ import annotations
 
-import argparse
 import csv
 from collections import defaultdict
 from pathlib import Path
@@ -24,16 +23,17 @@ import torch
 
 # Input dataset bundle to inspect (defaults to the same path used by find_duplicate_pairs.py).
 BUNDLE_PATH: Union[str, Path, None] = Path(
-    "/Users/ryangrgurich/VS Code Local/corner-maze-encoder-pretrain/data/pt-files/all-images-dataset-updated.pt"
+    "/Users/ryangrgurich/VS Code Local/corner-maze-encoder-pretrain/data/pt-files/all-images-equalized-dataset-duplicates-125-1.pt"
 )
 
 # Destination for the deduplicated .pt bundle.
 DEDUP_OUTPUT_PATH: Union[str, Path] = Path(
-    "/Users/ryangrgurich/VS Code Local/corner-maze-encoder-pretrain/data/pt-files/dedup-all-images-dataset.pt"
+    "/Users/ryangrgurich/VS Code Local/corner-maze-encoder-pretrain/data/pt-files/dedup-all-images-equalized-dataset-125-1.pt"
 )
 
 # CSV export path (defaults to sharing the deduplicated bundle's stem if left as None).
 DUPLICATES_CSV_PATH: Union[str, Path, None] = None
+OVERWRITE_OUTPUTS: bool = True
 
 
 def load_dataset(
@@ -221,6 +221,13 @@ def deduplicate_dataset(
     label_names_kept = [label_names_list[idx] for idx in keep_indices]
 
     catalog_builder: Dict[int, set] = defaultdict(set)
+    catalog_meta: Dict[int, Dict[str, Any]] = defaultdict(dict)
+
+    def _merge_metadata(target: Dict[str, Any], source: Dict[str, Any]) -> None:
+        for key, value in source.items():
+            if key == "descriptions":
+                continue
+            target.setdefault(key, value)
 
     def _ingest_catalog(source: Dict) -> None:
         for key, value in source.items():
@@ -231,6 +238,7 @@ def deduplicate_dataset(
             descriptions = []
             if isinstance(value, dict):
                 descriptions = value.get("descriptions") or []
+                _merge_metadata(catalog_meta[label_id], value)
             if isinstance(descriptions, (list, tuple, set)):
                 for desc in descriptions:
                     catalog_builder[label_id].add(str(desc))
@@ -242,7 +250,10 @@ def deduplicate_dataset(
         catalog_builder[int(label_id)].add(str(description))
 
     dedup_label_catalog = {
-        label_id: {"descriptions": sorted(descriptions)}
+        label_id: {
+            **catalog_meta.get(label_id, {}),
+            "descriptions": sorted(descriptions),
+        }
         for label_id, descriptions in catalog_builder.items()
     }
 
@@ -351,45 +362,17 @@ def remove_duplicates(
     return dedup_result, csv_written
 
 
-def parse_args(argv: Union[Sequence[str], None] = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Create a deduplicated dataset bundle and CSV listing duplicate groups."
-    )
-    parser.add_argument(
-        "--bundle",
-        default=BUNDLE_PATH,
-        help="Input dataset bundle (.pt). Defaults to the path configured in this script.",
-    )
-    parser.add_argument(
-        "--output",
-        default=DEDUP_OUTPUT_PATH,
-        help="Destination for the deduplicated dataset bundle (.pt).",
-    )
-    parser.add_argument(
-        "--csv",
-        default=DUPLICATES_CSV_PATH,
-        help="Optional CSV output path. Defaults to matching the --output stem.",
-    )
-    parser.add_argument(
-        "--overwrite",
-        action="store_true",
-        help="Allow overwriting existing output files (.pt and .csv).",
-    )
-    return parser.parse_args(argv)
-
-
-def main(argv: Union[Sequence[str], None] = None) -> None:
-    args = parse_args(argv)
-    if args.bundle is None:
-        raise ValueError("Bundle path is required. Set BUNDLE_PATH or provide --bundle.")
-    if args.output is None:
-        raise ValueError("Output path is required. Set DEDUP_OUTPUT_PATH or provide --output.")
+def main() -> None:
+    if BUNDLE_PATH is None:
+        raise ValueError("Bundle path is required. Set BUNDLE_PATH before running this script.")
+    if DEDUP_OUTPUT_PATH is None:
+        raise ValueError("Output path is required. Set DEDUP_OUTPUT_PATH before running this script.")
 
     dedup_result, csv_path = remove_duplicates(
-        bundle=args.bundle,
-        output_path=args.output,
-        csv_path=args.csv,
-        overwrite=args.overwrite,
+        bundle=BUNDLE_PATH,
+        output_path=DEDUP_OUTPUT_PATH,
+        csv_path=DUPLICATES_CSV_PATH,
+        overwrite=OVERWRITE_OUTPUTS,
     )
 
     if dedup_result["removed"] == 0:

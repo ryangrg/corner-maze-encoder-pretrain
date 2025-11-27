@@ -1,3 +1,4 @@
+import re
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -8,13 +9,15 @@ import numpy as np
 import torch
 from matplotlib.widgets import Button, TextBox
 
+ROOT_DIR = Path(__file__).resolve().parents[1]
+DEFAULT_DUPLICATE_CSV = ROOT_DIR / "data/pt-files/dedup-all-images-equalized-dataset-52-1-05.csv"
+DEFAULT_DATASET_BUNDLE = ROOT_DIR / "data/pt-files/all-images-equalized-dataset-duplicates-52-1-05.pt"
 
 @dataclass(frozen=True)
 class StereoPair:
     base: str
     left_path: Optional[Path]
     right_path: Optional[Path]
-
 
 def load_dataset_bundle(
     bundle_path: Path,
@@ -45,19 +48,29 @@ def load_dataset_bundle(
     if not isinstance(stack, torch.Tensor):
         raise TypeError(f"Expected 'x' entry to be a torch.Tensor, got {type(stack)!r}")
 
-    labels = payload.get("labels")
-    if labels is None:
-        labels = [f"sample_{idx}" for idx in range(stack.shape[0])]
+    count = stack.shape[0]
+
+    def _coerce_sequence(value: Any) -> Optional[List[str]]:
+        if value is None:
+            return None
+        if isinstance(value, torch.Tensor):
+            if value.ndim == 1 and value.shape[0] == count:
+                return [str(item) for item in value.detach().cpu().tolist()]
+            return None
+        if isinstance(value, Sequence) and not isinstance(value, (str, bytes)) and len(value) == count:
+            return [str(item) for item in value]
+        return None
+
+    label_names = _coerce_sequence(payload.get("label_names"))
+    if label_names is None:
+        label_names = _coerce_sequence(payload.get("labels"))
+    if label_names is None:
+        label_names = [f"sample_{idx}" for idx in range(count)]
 
     metadata = [
-        StereoPair(base=str(label), left_path=None, right_path=None)
-        for label in labels
+        StereoPair(base=name, left_path=None, right_path=None)
+        for name in label_names
     ]
-
-    if len(metadata) != stack.shape[0]:
-        raise ValueError(
-            f"Label count ({len(metadata)}) does not match tensor length ({stack.shape[0]})."
-        )
 
     meta_info = payload.get("meta", {})
     return stack, metadata, meta_info
@@ -133,6 +146,7 @@ def stereo_pair_display(
     *,
     view_mode: str = "multi",
     direction: Optional[str] = None,
+    duplicates_csv: Optional[Union[str, Path]] = None,
 ) -> None:
     """
     Interactive visualization for stereo image tensors.
@@ -142,7 +156,10 @@ def stereo_pair_display(
         metadata: StereoPair entries corresponding to each tensor.
         view_mode: `"multi"` (default) reproduces the 4×3 grid of views across directions.
             `"single"` shows only one overlap view at a time.
+            `"duplicates"` lets you step through groups listed in a duplicate CSV.
         direction: When `view_mode="single"`, sets the initial direction label (e.g. `"N"`).
+        duplicates_csv: Optional CSV file containing duplicate rows (only used when `view_mode="duplicates"`).
+            Defaults to `data/pt-files/dedup-all-images-dataset.csv`.
     """
     if stack.ndim != 4 or stack.shape[1] != 2:
         raise ValueError("Expected stack of shape (N, 2, H, W).")
@@ -150,14 +167,39 @@ def stereo_pair_display(
     if len(metadata) != stack.shape[0]:
         raise ValueError("Metadata length must match number of stereo pairs.")
 
+    CONFIG_FIELDS = ("session_phase", "start_arm", "cue_wall", "goal_zone")
+    CONFIG_RE = re.compile(
+        r"""^
+            (?P<session_phase>[a-z0-9]+)
+            _(?P<start_arm>[a-z0-9]+)
+            _(?P<cue_wall>[a-z0-9]+)
+            _(?P<goal_zone>[a-z0-9]+)
+            _(?P<x>-?\d+)
+            _(?P<y>-?\d+)
+            _(?P<direction>(?:n|e|s|w|ne|nw|se|sw))
+            (?:_(?P<eye>l|r))?
+        $""",
+        re.IGNORECASE | re.VERBOSE,
+    )
+
     def parse_base(base: str) -> Tuple[str, str, str, str]:
-        parts = base.split("_")
+        token = Path(base).stem if "." in base else base
+        token = token.strip()
+        match = CONFIG_RE.match(token)
+        if match:
+            prefix = "_".join(match.group(field).lower() for field in CONFIG_FIELDS)
+            x = match.group("x")
+            y = match.group("y")
+            direction = match.group("direction").upper()
+            return prefix, x, y, direction
+
+        parts = [part for part in token.split("_") if part]
         if len(parts) < 4:
             raise ValueError(f"Unexpected base format: {base}")
-        config = parts[0]
-        x = parts[1]
-        y = parts[2]
-        direction = "_".join(parts[3:])
+        config = "_".join(parts[:-3]) if len(parts) > 4 else parts[0]
+        x = parts[-3]
+        y = parts[-2]
+        direction = parts[-1].upper()
         return config, x, y, direction
 
     def tint_blue(channel: np.ndarray) -> np.ndarray:
@@ -182,15 +224,16 @@ def stereo_pair_display(
         x0 = cx - width / 2
         ax.set_position([x0, y0, width, height])
 
-    position_map: Dict[Tuple[str, str, str], Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]]] = defaultdict(dict)
+    position_map: Dict[Tuple[str, str, str], Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray, str]]] = defaultdict(dict)
     position_sets: Dict[str, set[Tuple[str, str]]] = defaultdict(set)
 
     for idx, sample in enumerate(metadata):
-        config, x, y, direction = parse_base(sample.base)
+        full_label = sample.base
+        config, x, y, direction = parse_base(full_label)
         left = stack[idx, 0].detach().cpu().numpy()
         right_mirrored = stack[idx, 1].detach().cpu().numpy()
         right_original = np.fliplr(right_mirrored)
-        position_map[(config, x, y)][direction] = (left, right_mirrored, right_original)
+        position_map[(config, x, y)][direction] = (left, right_mirrored, right_original, full_label)
         position_sets[config].add((x, y))
 
     if not position_map:
@@ -208,8 +251,8 @@ def stereo_pair_display(
         raise RuntimeError("No valid config/position combinations available.")
 
     mode = view_mode.lower()
-    if mode not in {"multi", "single"}:
-        raise ValueError(f"Unsupported view_mode {view_mode!r}. Use 'multi' or 'single'.")
+    if mode not in {"multi", "single", "duplicates"}:
+        raise ValueError(f"Unsupported view_mode {view_mode!r}. Use 'multi', 'single', or 'duplicates'.")
 
     if mode == "single":
         position_indices = {cfg: 0 for cfg in configs}
@@ -367,7 +410,7 @@ def stereo_pair_display(
             )
 
         def ordered_directions(
-            direction_dict: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]]
+            direction_dict: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray, str]]
         ) -> List[str]:
             ordered = [d for d in direction_preference if d in direction_dict]
             remaining = sorted(set(direction_dict.keys()) - set(ordered))
@@ -385,12 +428,12 @@ def stereo_pair_display(
         ) -> None:
             key = (cfg, x_val, y_val)
             direction_dict = position_map[key]
-            left, right_mirrored, _ = direction_dict[dir_label]
+            left, right_mirrored, _, full_label = direction_dict[dir_label]
             overlap = np.clip(tint_blue(left) + tint_red(right_mirrored), 0.0, 1.0)
 
             image_ax.imshow(overlap)
             image_ax.set_title(
-                f"{cfg} / ({x_val},{y_val}) / {dir_label}",
+                f"{cfg} / ({x_val},{y_val}) / {dir_label}\n{full_label}",
                 fontsize=12,
                 color="#dcdcdc",
             )
@@ -477,10 +520,11 @@ def stereo_pair_display(
             image_ax.cla()
             style_axis(image_ax)
             render_direction(cfg, x_val, y_val, chosen)
+            label_text = position_map[(cfg, x_val, y_val)][chosen][3]
             image_ax.text(
                 0.02,
                 0.02,
-                f"Config: {cfg} | Position: ({x_val}, {y_val}) | Direction: {chosen}",
+                f"Config: {cfg} | Position: ({x_val}, {y_val}) | Direction: {chosen}\nLabel: {label_text}",
                 va="bottom",
                 ha="left",
                 fontsize=12,
@@ -565,6 +609,139 @@ def stereo_pair_display(
         direction_next_btn.on_clicked(lambda _: shift_direction(1))
 
         set_config(0)
+        plt.show()
+        return
+    elif mode == "duplicates":
+        csv_path = Path(duplicates_csv or DEFAULT_DUPLICATE_CSV).expanduser()
+        if not csv_path.exists():
+            raise FileNotFoundError(f"Duplicate CSV not found: {csv_path}")
+
+        def _load_duplicate_rows(path: Path) -> List[List[str]]:
+            groups: List[List[str]] = []
+            with path.open("r", encoding="utf-8") as fh:
+                for line in fh:
+                    tokens = [token.strip() for token in line.strip().split(",") if token.strip()]
+                    if tokens:
+                        groups.append(tokens)
+            return groups
+
+        raw_groups = _load_duplicate_rows(csv_path)
+        label_to_index = {sample.base: idx for idx, sample in enumerate(metadata)}
+        duplicate_groups: List[List[str]] = []
+        skipped_groups = 0
+        for row in raw_groups:
+            filtered = [label for label in row if label in label_to_index]
+            if filtered:
+                duplicate_groups.append(filtered)
+            else:
+                skipped_groups += 1
+
+        if not duplicate_groups:
+            raise RuntimeError(
+                f"No duplicate groups matched dataset labels. Rows skipped: {skipped_groups}"
+            )
+
+        group_idx = 0
+        member_idx = 0
+
+        fig = plt.figure(figsize=(13.5, 10.5), constrained_layout=False, facecolor="#151515")
+        outer_grid = fig.add_gridspec(
+            nrows=2,
+            ncols=2,
+            height_ratios=[0.4, 0.6],
+            width_ratios=[0.3, 0.7],
+            hspace=0.2,
+            wspace=0.25,
+        )
+
+        info_ax = fig.add_subplot(outer_grid[0, 0])
+        info_ax.axis("off")
+        info_text = info_ax.text(
+            0.0,
+            0.5,
+            "",
+            va="center",
+            ha="left",
+            fontsize=11,
+            color="#e0e0e0",
+        )
+
+        def style_axis(ax) -> None:
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
+            ax.set_frame_on(True)
+            ax.set_facecolor("#151515")
+            for spine in ax.spines.values():
+                spine.set_edgecolor("#7f7f7f")
+                spine.set_linewidth(1.0)
+
+        button_grid = outer_grid[1, 0].subgridspec(4, 1, hspace=0.2)
+        group_prev_ax = fig.add_subplot(button_grid[0, 0])
+        group_next_ax = fig.add_subplot(button_grid[1, 0])
+        item_prev_ax = fig.add_subplot(button_grid[2, 0])
+        item_next_ax = fig.add_subplot(button_grid[3, 0])
+        for ax in (group_prev_ax, group_next_ax, item_prev_ax, item_next_ax):
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.set_facecolor("#f0f0f0")
+            resize_axis(ax, width_px=80, height_px=30)
+
+        group_prev_btn = Button(group_prev_ax, "Prev Group")
+        group_next_btn = Button(group_next_ax, "Next Group")
+        item_prev_btn = Button(item_prev_ax, "Prev Item")
+        item_next_btn = Button(item_next_ax, "Next Item")
+        for btn in (group_prev_btn, group_next_btn, item_prev_btn, item_next_btn):
+            btn.label.set_fontsize(9)
+            btn.label.set_color("#000000")
+
+        image_ax = fig.add_subplot(outer_grid[:, 1])
+        style_axis(image_ax)
+
+        def _fetch_label_images(label: str) -> Tuple[np.ndarray, np.ndarray]:
+            idx = label_to_index[label]
+            left = stack[idx, 0].detach().cpu().numpy()
+            right_mirrored = stack[idx, 1].detach().cpu().numpy()
+            return left, right_mirrored
+
+        def render_duplicate_view(label: str) -> None:
+            left, right_mirrored = _fetch_label_images(label)
+            overlap = np.clip(tint_blue(left) + tint_red(right_mirrored), 0.0, 1.0)
+
+            image_ax.cla()
+            style_axis(image_ax)
+            image_ax.imshow(overlap)
+            image_ax.set_title("Overlap (Left=Blue, Right=Red)", fontsize=12, color="#dcdcdc")
+
+        def update_duplicate_display() -> None:
+            group = duplicate_groups[group_idx]
+            label = group[member_idx]
+            render_duplicate_view(label)
+            info_text.set_text(
+                f"Group {group_idx + 1}/{len(duplicate_groups)} "
+                f"(size {len(group)}) | Item {member_idx + 1}/{len(group)}\n{label}"
+            )
+            fig.canvas.draw_idle()
+
+        def shift_group(delta: int) -> None:
+            nonlocal group_idx, member_idx
+            total = len(duplicate_groups)
+            group_idx = (group_idx + delta) % total
+            member_idx = 0
+            update_duplicate_display()
+
+        def shift_member(delta: int) -> None:
+            nonlocal member_idx
+            group = duplicate_groups[group_idx]
+            member_idx = (member_idx + delta) % len(group)
+            update_duplicate_display()
+
+        group_prev_btn.on_clicked(lambda _: shift_group(-1))
+        group_next_btn.on_clicked(lambda _: shift_group(1))
+        item_prev_btn.on_clicked(lambda _: shift_member(-1))
+        item_next_btn.on_clicked(lambda _: shift_member(1))
+
+        update_duplicate_display()
         plt.show()
         return
 
@@ -676,7 +853,7 @@ def stereo_pair_display(
         "Left vs Right (Original)",
     ]
 
-    def preferred_directions(direction_dict: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]]) -> List[str]:
+    def preferred_directions(direction_dict: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray, str]]) -> List[str]:
         ordered = [d for d in direction_preference if d in direction_dict]
         remaining = sorted(set(direction_dict.keys()) - set(ordered))
         return (ordered + remaining)[:4]
@@ -742,7 +919,11 @@ def stereo_pair_display(
             fig.canvas.draw_idle()
             return
 
-        info_text.set_text(f"Config: {cfg} | Position: ({x_val}, {y_val})")
+        label_summary = "\n".join(
+            f"{dir_label}: {direction_dict[dir_label][3]}"
+            for dir_label in preferred_directions(direction_dict)
+        )
+        info_text.set_text(f"Config: {cfg} | Position: ({x_val}, {y_val})\n{label_summary}")
         clear_panels()
 
         for col, title in enumerate(column_titles):
@@ -752,7 +933,7 @@ def stereo_pair_display(
         for row_idx in range(4):
             if row_idx < len(directions_to_show):
                 direction = directions_to_show[row_idx]
-                left, right_mirrored, right_original = direction_dict[direction]
+                left, right_mirrored, right_original, full_label = direction_dict[direction]
 
                 overlap = np.clip(tint_blue(left) + tint_red(right_mirrored), 0.0, 1.0)
                 left_vs_mirrored = np.concatenate(
@@ -782,6 +963,22 @@ def stereo_pair_display(
                     fontsize=10,
                     fontweight="bold",
                     color="#dcdcdc",
+                )
+
+                axes[row_idx, 0].text(
+                    0.02,
+                    0.93,
+                    full_label,
+                    transform=axes[row_idx, 0].transAxes,
+                    va="top",
+                    ha="left",
+                    fontsize=8,
+                    color="#f0f0f0",
+                    bbox={
+                        "facecolor": "#00000060",
+                        "edgecolor": "none",
+                        "boxstyle": "round,pad=0.2",
+                    },
                 )
 
                 for col in range(3):
@@ -943,15 +1140,14 @@ def group_similar_stereo_pairs(
 
 
 if __name__ == "__main__":
-    bundle_path = Path(
-        "/Users/ryangrgurich/VS Code Local/corner-maze-encoder-pretrain/data/pt-files/deduplicated-test-dataset.pt"
-    )
+    bundle_path = Path(DEFAULT_DATASET_BUNDLE)
     stack, metadata, meta_info = load_dataset_bundle(bundle_path)
     print(f"Loaded dataset from {bundle_path.expanduser().resolve()}")
     print("Image stack shape:", tuple(stack.shape))
     if meta_info:
         print(f"Bundle meta: {meta_info}")
-    stereo_pair_display(stack, metadata, view_mode='multi', direction='N')
+    stereo_pair_display(stack, metadata, view_mode='duplicates', direction='N')
+    
     # similar_pairs = group_similar_stereo_pairs(stack, metadata, 10, 0.5)
     # for group in similar_pairs:
     #     print(group)

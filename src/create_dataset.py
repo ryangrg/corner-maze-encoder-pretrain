@@ -5,13 +5,20 @@ build_binocular_bundle.py
 Processes binocular PNG images into a single .pt dataset bundle.
 
 Each file should follow:
-    configN_x_y_direction_eye.png
+    <session_phase>_<start_arm>_<cue_wall>_<goal_zone>_<x>_<y>_<direction>_<eye>.png
+
+Examples:
+    iti_n_x_ne_9_9_ne_l.png
+    trl_e_n_xx_3_6_n_l.png
 
 Where:
-  - N: integer configuration ID
-  - x, y: coordinates (ints)
-  - direction: 0–7 or compass (north, NE, east, SE, south, SW, west, NW)
-  - eye: 'left' or 'right'
+  - session_phase: recording epoch such as `trl` (trial) or `iti` (inter-trial interval)
+  - start_arm: open arm (`n`, `e`, `s`, `w`)
+  - cue_wall: cue location (`n`, `e`, `s`, `w`, or `x` for no cue)
+  - goal_zone: accessible goal (`ne`, `nw`, `se`, `sw`, or `xx` for neutral)
+  - x, y: maze coordinates (ints)
+  - direction: n, e, s, w, ne, se, sw, nw
+  - eye: l (left) or r (right)
 
 Processing steps:
   • Convert to grayscale
@@ -37,9 +44,9 @@ just edit the constants below and run the whole cell.
 # === USER SETTINGS ====
 # =======================
 
-IMAGE_DIR = "/Users/ryangrgurich/VS Code Local/corner-maze-encoder-pretrain/data/images/all-images"                 # directory containing PNGs
+IMAGE_DIR = "/Users/ryangrgurich/VS Code Local/corner-maze-encoder-pretrain/data/images/all-images-equalized"                 # directory containing PNGs
 BLUR_RADIUS = 1.5                             # Gaussian blur radius
-OUTPUT_NAME = "/Users/ryangrgurich/VS Code Local/corner-maze-encoder-pretrain/data/pt-files/all-images-dataset.pt" # output path and filename
+OUTPUT_NAME = "/Users/ryangrgurich/VS Code Local/corner-maze-encoder-pretrain/data/pt-files/all-images-equalized-dataset.pt" # output path and filename
 
 # =======================
 # === SCRIPT LOGIC ======
@@ -58,53 +65,71 @@ from torchvision.transforms import functional as TF
 # --- Filename pattern ---
 FNAME_RE = re.compile(
     r"""^
-        config(?P<config>\d+)
+        (?P<session_phase>[a-z0-9]+)
+        _(?P<start_arm>[a-z0-9]+)
+        _(?P<cue_wall>[a-z0-9]+)
+        _(?P<goal_zone>[a-z0-9]+)
         _(?P<x>-?\d+)
         _(?P<y>-?\d+)
-        _(?P<direction>(?:[0-7]|north|NE|east|SE|south|SW|west|NW))
-        _(?P<eye>left|right)(?:-?eye)?
+        _(?P<direction>(?:n|e|s|w|ne|se|sw|nw))
+        _(?P<eye>l|r)
         \.png$
     """,
     re.IGNORECASE | re.VERBOSE,
 )
 DIR_TO_INT = {
-    "NORTH": 0,
+    "NW": 0,
+    "N": 0,
     "NE": 1,
-    "EAST": 2,
-    "SE": 3,
-    "SOUTH": 4,
-    "SW": 5,
-    "WEST": 6,
-    "NW": 7,
+    "E": 1,
+    "SE": 2,
+    "S": 2,
+    "SW": 3,
+    "W": 3,
 }
+CONFIG_FIELDS = ("session_phase", "start_arm", "cue_wall", "goal_zone")
+ConfigTuple = Tuple[str, str, str, str]
+PairKey = Tuple[ConfigTuple, int, int, int]
 
 
-def key_to_label(key: Tuple[int, int, int, int]) -> str:
+def normalize_config(match: re.Match) -> ConfigTuple:
+    return tuple(match.group(field).lower() for field in CONFIG_FIELDS)  # type: ignore[arg-type]
+
+
+def config_to_slug(config: ConfigTuple) -> str:
+    return "_".join(config)
+
+
+def config_to_metadata(config: ConfigTuple) -> Dict[str, str]:
+    data = {field: value for field, value in zip(CONFIG_FIELDS, config)}
+    data["config_slug"] = config_to_slug(config)
+    return data
+
+
+def key_to_label(key: PairKey) -> str:
     cfg, x, y, d = key
-    return f"{cfg}_{x}_{y}_{d}"
+    return f"{config_to_slug(cfg)}_{x}_{y}_{d}"
 
 # Index all left/right image pairs in the given directory
-# Returns a dict mapping (config, x, y, direction) -> {"left": Path, "right": Path}
-def index_pairs(root: Path) -> Dict[Tuple[int,int,int,int], Dict[str, Path]]:
-    pairs: Dict[Tuple[int,int,int,int], Dict[str, Path]] = {}
-    for p in root.glob("*.png"):
+# Returns a dict mapping (config tuple, x, y, direction) -> {"left": Path, "right": Path}
+def index_pairs(root: Path) -> Dict[PairKey, Dict[str, Path]]:
+    pairs: Dict[PairKey, Dict[str, Path]] = {}
+    for p in root.rglob("*.png"):
         m = FNAME_RE.match(p.name)
         if not m:
             continue
-        cfg = int(m.group("config"))
+        cfg = normalize_config(m)
         x = int(m.group("x"))
         y = int(m.group("y"))
-        dir_raw = m.group("direction")
-        eye = m.group("eye").lower()
+        dir_raw = m.group("direction").upper()
+        eye_token = m.group("eye").lower()
+        eye = "left" if eye_token in {"l", "left"} else "right"
 
-        if dir_raw.isdigit():
-            d = int(dir_raw)
-        else:
-            d = DIR_TO_INT.get(dir_raw.upper(), None)
-            if d is None:
-                continue
+        d = DIR_TO_INT.get(dir_raw)
+        if d is None:
+            continue
 
-        key = (cfg, x, y, d)
+        key: PairKey = (cfg, x, y, d)
         bucket = pairs.setdefault(key, {})
         bucket[eye] = p
 
@@ -143,8 +168,14 @@ def main(image_dir: str, blur_radius: float, output_name: str):
         raise RuntimeError("No complete left/right pairs found in directory.")
 
     keys = sorted(pairs.keys())
-    label_names = [key_to_label(k) for k in keys]
-    name_to_id = {name: i for i, name in enumerate(label_names)}
+    label_names: List[str] = []
+    name_to_id: Dict[str, int] = {}
+    config_lookup: Dict[int, Dict[str, str]] = {}
+    for idx, key in enumerate(keys):
+        label = key_to_label(key)
+        label_names.append(label)
+        name_to_id[label] = idx
+        config_lookup[idx] = config_to_metadata(key[0])
 
     print(f"[INFO] Found {len(keys)} complete pairs in {root}")
 
@@ -164,10 +195,11 @@ def main(image_dir: str, blur_radius: float, output_name: str):
     catalog_builder: Dict[int, set] = defaultdict(set)
     for label_id, description in zip(label_ids, label_names):
         catalog_builder[label_id].add(description)
-    label_catalog = {
-        label_id: {"descriptions": sorted(descriptions)}
-        for label_id, descriptions in catalog_builder.items()
-    }
+    label_catalog: Dict[int, Dict[str, object]] = {}
+    for label_id, descriptions in catalog_builder.items():
+        entry = dict(config_lookup.get(label_id, {}))
+        entry["descriptions"] = sorted(descriptions)
+        label_catalog[label_id] = entry
     label2idx = {
         description: label_id
         for label_id, info in label_catalog.items()
@@ -191,6 +223,7 @@ def main(image_dir: str, blur_radius: float, output_name: str):
             "count": len(label_names),
             "label_dtype": str(Y.dtype),
             "catalog_size": len(label_catalog),
+            "config_fields": list(CONFIG_FIELDS),
         },
     }
 
