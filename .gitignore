@@ -27,3 +27,6 @@ logs/
 
 # Local datasets or generated assets
 outputs/
+
+# Files
+.png

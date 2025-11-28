@@ -10,8 +10,8 @@ import torch
 from matplotlib.widgets import Button, TextBox
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_DUPLICATE_CSV = ROOT_DIR / "data/pt-files/dedup-all-images-equalized-dataset-52-1-05.csv"
-DEFAULT_DATASET_BUNDLE = ROOT_DIR / "data/pt-files/all-images-equalized-dataset-duplicates-52-1-05.pt"
+DEFAULT_DUPLICATE_CSV = ROOT_DIR / "data/pt-files/dedup-corner-maze-render-base-images-dataset-52-1.csv"
+DEFAULT_DATASET_BUNDLE = ROOT_DIR / "data/pt-files/corner-maze-render-base-images-duplicate-groups-52-1.pt"
 
 @dataclass(frozen=True)
 class StereoPair:
@@ -644,14 +644,14 @@ def stereo_pair_display(
         group_idx = 0
         member_idx = 0
 
-        fig = plt.figure(figsize=(13.5, 10.5), constrained_layout=False, facecolor="#151515")
+        fig = plt.figure(figsize=(12, 8.5), constrained_layout=False, facecolor="#151515")
         outer_grid = fig.add_gridspec(
             nrows=2,
             ncols=2,
-            height_ratios=[0.4, 0.6],
-            width_ratios=[0.3, 0.7],
-            hspace=0.2,
-            wspace=0.25,
+            height_ratios=[0.18, 0.82],
+            width_ratios=[0.12, 0.88],
+            hspace=0.08,
+            wspace=0.08,
         )
 
         info_ax = fig.add_subplot(outer_grid[0, 0])
@@ -695,8 +695,17 @@ def stereo_pair_display(
             btn.label.set_fontsize(9)
             btn.label.set_color("#000000")
 
-        image_ax = fig.add_subplot(outer_grid[:, 1])
-        style_axis(image_ax)
+        image_grid = outer_grid[:, 1].subgridspec(
+            1,
+            3,
+            width_ratios=[1.0, 1.0, 1.0],
+            wspace=0.015,
+        )
+        overlap_ax = fig.add_subplot(image_grid[0, 0])
+        left_eye_ax = fig.add_subplot(image_grid[0, 1])
+        right_eye_ax = fig.add_subplot(image_grid[0, 2])
+        for ax in (overlap_ax, left_eye_ax, right_eye_ax):
+            style_axis(ax)
 
         def _fetch_label_images(label: str) -> Tuple[np.ndarray, np.ndarray]:
             idx = label_to_index[label]
@@ -706,12 +715,21 @@ def stereo_pair_display(
 
         def render_duplicate_view(label: str) -> None:
             left, right_mirrored = _fetch_label_images(label)
+            right_original = np.fliplr(right_mirrored)
             overlap = np.clip(tint_blue(left) + tint_red(right_mirrored), 0.0, 1.0)
 
-            image_ax.cla()
-            style_axis(image_ax)
-            image_ax.imshow(overlap)
-            image_ax.set_title("Overlap (Left=Blue, Right=Red)", fontsize=12, color="#dcdcdc")
+            for ax in (overlap_ax, left_eye_ax, right_eye_ax):
+                ax.cla()
+                style_axis(ax)
+
+            overlap_ax.imshow(overlap)
+            overlap_ax.set_title("Overlap (Left=Blue, Right=Red)", fontsize=12, color="#dcdcdc")
+
+            left_eye_ax.imshow(tint_blue(left))
+            left_eye_ax.set_title("Left Eye (Blue)", fontsize=12, color="#dcdcdc")
+
+            right_eye_ax.imshow(tint_red(right_original))
+            right_eye_ax.set_title("Right Eye (Red, Original)", fontsize=12, color="#dcdcdc")
 
         def update_duplicate_display() -> None:
             group = duplicate_groups[group_idx]

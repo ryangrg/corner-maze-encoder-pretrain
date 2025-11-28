@@ -36,11 +36,13 @@ def deduplicate_bundle(
     )
 
     duplicate_groups = result.get("duplicate_groups") or []
-    if report_path and duplicate_groups:
+    singleton_groups = result.get("singleton_groups") or []
+    if report_path and (duplicate_groups or singleton_groups):
         report_path = Path(report_path).expanduser().resolve()
         report_path.parent.mkdir(parents=True, exist_ok=True)
         data = {
             "duplicate_groups": duplicate_groups,
+            "singleton_groups": singleton_groups,
             "plan": result.get("plan"),
         }
         with report_path.open("w", encoding="utf-8") as fh:

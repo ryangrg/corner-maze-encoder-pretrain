@@ -44,9 +44,9 @@ just edit the constants below and run the whole cell.
 # === USER SETTINGS ====
 # =======================
 
-IMAGE_DIR = "/Users/ryangrgurich/VS Code Local/corner-maze-encoder-pretrain/data/images/all-images-equalized"                 # directory containing PNGs
+IMAGE_DIR = "/Users/ryangrgurich/VS Code Local/corner-maze-encoder-pretrain/data/images/corner-maze-render-base-images"                 # directory containing PNGs
 BLUR_RADIUS = 1.5                             # Gaussian blur radius
-OUTPUT_NAME = "/Users/ryangrgurich/VS Code Local/corner-maze-encoder-pretrain/data/pt-files/all-images-equalized-dataset.pt" # output path and filename
+OUTPUT_NAME = "/Users/ryangrgurich/VS Code Local/corner-maze-encoder-pretrain/data/pt-files/corner-maze-render-base-images-dataset.pt" # output path and filename
 
 # =======================
 # === SCRIPT LOGIC ======

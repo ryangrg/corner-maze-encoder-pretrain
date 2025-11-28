@@ -16,15 +16,15 @@ import re
 from pathlib import Path
 from typing import Dict
 
-CONFIG_DIR = Path("~/VS Code Local/corner-maze-encoder-pretrain/data/images/change/")  # <-- update this before running
+CONFIG_DIR = Path("~/VS Code Local/corner-maze-encoder-pretrain/data/images/corner-maze-render-base-images/")  # <-- update this before running
 
 _DIRECTION_REPLACEMENTS: Dict[str, str] = {
-    "L": "l",
-    "R": "r",
-    "N": "n",
-    "E": "e",
-    "S": "s",
-    "W": "w",
+    "left": "l",
+    "right": "r",
+    "north": "n",
+    "east": "e",
+    "south": "s",
+    "west": "w",
     "NW": "nw",
     "NE": "ne",
     "SE": "se",
@@ -59,12 +59,12 @@ def replace_direction_tokens(name: str) -> str:
 
     def _word_replacement(match: re.Match[str]) -> str:
         mapping = {
-            "left": "L",
-            "right": "R",
-            "north": "N",
-            "east": "E",
-            "south": "S",
-            "west": "W",
+            "left": "l",
+            "right": "r",
+            "north": "n",
+            "east": "e",
+            "south": "s",
+            "west": "w",
         }
         return mapping[match.group(0).lower()]
 

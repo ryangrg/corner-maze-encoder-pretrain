@@ -23,12 +23,12 @@ import torch
 
 # Input dataset bundle to inspect (defaults to the same path used by find_duplicate_pairs.py).
 BUNDLE_PATH: Union[str, Path, None] = Path(
-    "/Users/ryangrgurich/VS Code Local/corner-maze-encoder-pretrain/data/pt-files/all-images-equalized-dataset-duplicates-125-1.pt"
+    "/Users/ryangrgurich/VS Code Local/corner-maze-encoder-pretrain/data/pt-files/corner-maze-render-base-images-duplicate-groups-52-1.pt"
 )
 
 # Destination for the deduplicated .pt bundle.
 DEDUP_OUTPUT_PATH: Union[str, Path] = Path(
-    "/Users/ryangrgurich/VS Code Local/corner-maze-encoder-pretrain/data/pt-files/dedup-all-images-equalized-dataset-125-1.pt"
+    "/Users/ryangrgurich/VS Code Local/corner-maze-encoder-pretrain/data/pt-files/dedup-corner-maze-render-base-images-dataset-52-1.pt"
 )
 
 # CSV export path (defaults to sharing the deduplicated bundle's stem if left as None).
@@ -201,6 +201,12 @@ def deduplicate_dataset(
     duplicate_label_groups = [
         [label_names_list[idx] for idx in indices] for indices in duplicate_index_groups
     ]
+    duplicate_member_indices = {idx for group in duplicate_index_groups for idx in group}
+    singleton_label_groups = [
+        [label_names_list[idx]]
+        for idx in range(stack.shape[0])
+        if idx not in duplicate_member_indices
+    ]
 
     if not duplicate_index_groups:
         return {
@@ -209,6 +215,7 @@ def deduplicate_dataset(
             "kept": stack.shape[0],
             "plan": None,
             "duplicate_groups": [],
+            "singleton_groups": singleton_label_groups,
         }
 
     plan = _build_deduplication_plan(stack.shape[0], label_names_list, duplicate_index_groups)
@@ -307,6 +314,7 @@ def deduplicate_dataset(
         "kept": len(keep_indices),
         "plan": plan,
         "duplicate_groups": duplicate_label_groups,
+        "singleton_groups": singleton_label_groups,
     }
 
 
@@ -323,14 +331,22 @@ def _resolve_paths(
     return bundle_path, output_path, csv_path
 
 
-def _write_duplicate_csv(csv_path: Path, duplicate_groups: Sequence[Sequence[str]]) -> None:
+def _write_duplicate_csv(
+    csv_path: Path,
+    duplicate_groups: Sequence[Sequence[str]],
+    singleton_groups: Sequence[Sequence[str]] | None = None,
+) -> None:
     csv_path.parent.mkdir(parents=True, exist_ok=True)
     with csv_path.open("w", newline="", encoding="utf-8") as fh:
         writer = csv.writer(fh)
-        for group in duplicate_groups:
-            writer.writerow(list(group))
-        if not duplicate_groups:
+        rows: List[Sequence[str]] = list(duplicate_groups)
+        if singleton_groups:
+            rows.extend(singleton_groups)
+        if not rows:
             writer.writerow([])
+            return
+        for group in rows:
+            writer.writerow(list(group))
 
 
 def remove_duplicates(
@@ -353,8 +369,9 @@ def remove_duplicates(
     )
 
     duplicate_groups = dedup_result.get("duplicate_groups") or []
-    if duplicate_groups and csv_target is not None:
-        _write_duplicate_csv(csv_target, duplicate_groups)
+    singleton_groups = dedup_result.get("singleton_groups") or []
+    if csv_target is not None and (duplicate_groups or singleton_groups):
+        _write_duplicate_csv(csv_target, duplicate_groups, singleton_groups)
         csv_written: Union[Path, None] = csv_target
     else:
         csv_written = None

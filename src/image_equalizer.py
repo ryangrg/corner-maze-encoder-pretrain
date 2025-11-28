@@ -19,8 +19,8 @@ import cv2
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_INPUT = ROOT / "data/images/test-compare"
-DEFAULT_OUTPUT = ROOT / "data/images/test-compare-equalized"
+DEFAULT_INPUT = ROOT / "data/images/corner-maze-render-base-images"
+DEFAULT_OUTPUT = ROOT / "data/images/corner-maze-render-base-images-equalized"
 SUPPORTED_SUFFIXES = {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff"}
 
 
