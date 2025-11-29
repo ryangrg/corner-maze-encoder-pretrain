@@ -1,15 +1,24 @@
 Line above grouped or singleton images labels indicates if checked and whether the grouping was 
 modified during manual review.
 
-(1/262) Checked: No duplicate imaged main group Split group.
+(1/262) Checked: No matching duplicate in other groups.
 labels in second line are slight brighter in right eye far monitor.
+barrier difference between groups.
 iti_w_x_nw_10_6_1,iti_w_x_sw_2_6_3,iti_w_x_xx_2_6_3,iti_w_x_xx_6_10_2,iti_w_x_xx_10_6_1
 iti_w_x_nw_6_2_0,iti_w_x_sw_6_2_0,trl_n_x_xx_6_2_0,trl_n_x_xx_6_10_2 
 
-(2/
-iti_w_x_nw_6_2_1,iti_w_x_nw_10_6_2,iti_w_x_sw_2_6_0,iti_w_x_sw_6_2_1,iti_w_x_xx_2_6_0,iti_w_x_xx_6_10_3,iti_w_x_xx_10_6_2,trl_n_x_xx_6_2_1,trl_n_x_xx_6_10_3
+(2/262) Checked: No matching duplicate in other groups.
+labels in second line are sharper in monitor in central view area.
+barrier difference between groups.
+iti_w_x_nw_10_6_2,iti_w_x_sw_2_6_0,iti_w_x_xx_2_6_0,iti_w_x_xx_6_10_3,iti_w_x_xx_10_6_2
+iti_w_x_nw_6_2_1,iti_w_x_sw_6_2_1,trl_n_x_xx_6_2_1,trl_n_x_xx_6_10_3
 
-iti_w_x_nw_6_2_2,iti_w_x_nw_10_6_3,iti_w_x_sw_2_6_1,iti_w_x_sw_6_2_2,iti_w_x_xx_2_6_1,iti_w_x_xx_6_10_0,iti_w_x_xx_10_6_3,trl_n_x_xx_6_2_2,trl_n_x_xx_6_10_0
+(3/262) Checked:
+labels in second line are sharper in left most monitor in left eye.
+barrier difference between groups.
+iti_w_x_nw_10_6_3,iti_w_x_sw_2_6_1,iti_w_x_xx_2_6_1,iti_w_x_xx_6_10_0,iti_w_x_xx_10_6_3,
+iti_w_x_nw_6_2_2,iti_w_x_sw_6_2_2,trl_n_x_xx_6_2_2,trl_n_x_xx_6_10_0
+
 iti_w_x_nw_6_2_3,iti_w_x_nw_10_6_0,iti_w_x_sw_2_6_2,iti_w_x_sw_6_2_3,iti_w_x_xx_2_6_2,iti_w_x_xx_6_10_1,iti_w_x_xx_10_6_0,trl_n_x_xx_6_2_3,trl_n_x_xx_6_10_1
 iti_w_x_nw_6_3_0,iti_w_x_sw_6_3_0,trl_n_x_xx_6_3_0,trl_n_x_xx_6_9_2
 iti_w_x_nw_6_3_1,iti_w_x_sw_6_3_1,trl_n_x_xx_6_3_1,trl_n_x_xx_6_9_3

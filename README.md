@@ -51,3 +51,11 @@ Early contributions should focus on:
 - Adding tests that check tensor shapes, pose coverage, and encoder invariances.
 
 Please open an issue or draft pull request to coordinate efforts.
+
+## Image Clustering Method
+Clustering similar views from a pose, by first checking for duplicates allowing for a variance between pixel values.
+This method offer a first crude pass where too much variance clusters images together that shouldn't be and too
+tight of a tolerance leaves out images from clusters. Taking an approach to run a lose variance that clusters
+compositionaly similar images but then has a hard time determining if a barrier is in the image or other subtleties.
+A view through a barrier renders a monitor slightly more blurry than otherwise. Other subtleties can include odd reflexes
+from side wall when there is cue and bright dull spots from barrier reflections.
