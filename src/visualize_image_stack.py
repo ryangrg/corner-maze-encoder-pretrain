@@ -644,17 +644,17 @@ def stereo_pair_display(
         group_idx = 0
         member_idx = 0
 
-        fig = plt.figure(figsize=(12, 8.5), constrained_layout=False, facecolor="#151515")
+        fig = plt.figure(figsize=(11, 7.0), constrained_layout=False, facecolor="#151515")
+        fig.subplots_adjust(left=0.015, right=0.985)
         outer_grid = fig.add_gridspec(
-            nrows=2,
-            ncols=2,
-            height_ratios=[0.18, 0.82],
-            width_ratios=[0.12, 0.88],
-            hspace=0.08,
-            wspace=0.08,
+            nrows=3,
+            ncols=1,
+            height_ratios=[0.18, 0.14, 0.68],
+            hspace=0.035,
         )
 
-        info_ax = fig.add_subplot(outer_grid[0, 0])
+        info_grid = outer_grid[0, 0].subgridspec(1, 2, width_ratios=[0.7, 0.3], wspace=0.02)
+        info_ax = fig.add_subplot(info_grid[0, 0])
         info_ax.axis("off")
         info_text = info_ax.text(
             0.0,
@@ -666,6 +666,16 @@ def stereo_pair_display(
             color="#e0e0e0",
         )
 
+        view_toggle_ax = fig.add_subplot(info_grid[0, 1])
+        view_toggle_ax.set_xticks([])
+        view_toggle_ax.set_yticks([])
+        view_toggle_ax.set_facecolor("#f0f0f0")
+        resize_axis(view_toggle_ax, width_px=90, height_px=26)
+        view_toggle_btn = Button(view_toggle_ax, "Show Gray")
+        view_toggle_btn.label.set_fontsize(9)
+        view_toggle_btn.label.set_color("#000000")
+        show_gray = False
+
         def style_axis(ax) -> None:
             ax.set_xticks([])
             ax.set_yticks([])
@@ -676,11 +686,16 @@ def stereo_pair_display(
                 spine.set_edgecolor("#7f7f7f")
                 spine.set_linewidth(1.0)
 
-        button_grid = outer_grid[1, 0].subgridspec(4, 1, hspace=0.2)
+        button_grid = outer_grid[1, 0].subgridspec(
+            1,
+            4,
+            width_ratios=[1.0, 1.0, 1.0, 1.0],
+            wspace=0.02,
+        )
         group_prev_ax = fig.add_subplot(button_grid[0, 0])
-        group_next_ax = fig.add_subplot(button_grid[1, 0])
-        item_prev_ax = fig.add_subplot(button_grid[2, 0])
-        item_next_ax = fig.add_subplot(button_grid[3, 0])
+        group_next_ax = fig.add_subplot(button_grid[0, 1])
+        item_prev_ax = fig.add_subplot(button_grid[0, 2])
+        item_next_ax = fig.add_subplot(button_grid[0, 3])
         for ax in (group_prev_ax, group_next_ax, item_prev_ax, item_next_ax):
             ax.set_xticks([])
             ax.set_yticks([])
@@ -695,12 +710,7 @@ def stereo_pair_display(
             btn.label.set_fontsize(9)
             btn.label.set_color("#000000")
 
-        image_grid = outer_grid[:, 1].subgridspec(
-            1,
-            3,
-            width_ratios=[1.0, 1.0, 1.0],
-            wspace=0.015,
-        )
+        image_grid = outer_grid[2, 0].subgridspec(1, 3, wspace=0.0)
         overlap_ax = fig.add_subplot(image_grid[0, 0])
         left_eye_ax = fig.add_subplot(image_grid[0, 1])
         right_eye_ax = fig.add_subplot(image_grid[0, 2])
@@ -722,14 +732,22 @@ def stereo_pair_display(
                 ax.cla()
                 style_axis(ax)
 
-            overlap_ax.imshow(overlap)
-            overlap_ax.set_title("Overlap (Left=Blue, Right=Red)", fontsize=12, color="#dcdcdc")
-
-            left_eye_ax.imshow(tint_blue(left))
-            left_eye_ax.set_title("Left Eye (Blue)", fontsize=12, color="#dcdcdc")
-
-            right_eye_ax.imshow(tint_red(right_original))
-            right_eye_ax.set_title("Right Eye (Red, Original)", fontsize=12, color="#dcdcdc")
+            if show_gray:
+                right_flipped = np.fliplr(right_original)
+                mixed_gray = np.clip((left + right_flipped) / 2.0, 0.0, 1.0)
+                overlap_ax.imshow(mixed_gray, cmap="gray", vmin=0.0, vmax=1.0)
+                overlap_ax.set_title("Overlap (Gray)", fontsize=12, color="#dcdcdc")
+                left_eye_ax.imshow(left, cmap="gray", vmin=0.0, vmax=1.0)
+                left_eye_ax.set_title("Left Eye (Gray)", fontsize=12, color="#dcdcdc")
+                right_eye_ax.imshow(right_original, cmap="gray", vmin=0.0, vmax=1.0)
+                right_eye_ax.set_title("Right Eye (Gray)", fontsize=12, color="#dcdcdc")
+            else:
+                overlap_ax.imshow(overlap)
+                overlap_ax.set_title("Overlap (Left=Blue, Right=Red)", fontsize=12, color="#dcdcdc")
+                left_eye_ax.imshow(tint_blue(left))
+                left_eye_ax.set_title("Left Eye (Blue)", fontsize=12, color="#dcdcdc")
+                right_eye_ax.imshow(tint_red(right_original))
+                right_eye_ax.set_title("Right Eye (Red, Original)", fontsize=12, color="#dcdcdc")
 
         def update_duplicate_display() -> None:
             group = duplicate_groups[group_idx]
@@ -754,10 +772,18 @@ def stereo_pair_display(
             member_idx = (member_idx + delta) % len(group)
             update_duplicate_display()
 
+        def toggle_view(_: str) -> None:
+            nonlocal show_gray
+            show_gray = not show_gray
+            view_toggle_btn.label.set_text("Show RGB" if show_gray else "Show Gray")
+            render_duplicate_view(duplicate_groups[group_idx][member_idx])
+            fig.canvas.draw_idle()
+
         group_prev_btn.on_clicked(lambda _: shift_group(-1))
         group_next_btn.on_clicked(lambda _: shift_group(1))
         item_prev_btn.on_clicked(lambda _: shift_member(-1))
         item_next_btn.on_clicked(lambda _: shift_member(1))
+        view_toggle_btn.on_clicked(toggle_view)
 
         update_duplicate_display()
         plt.show()
