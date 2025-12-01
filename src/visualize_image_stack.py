@@ -100,14 +100,18 @@ def visualize_stereo_pair(
     right_original = np.fliplr(right_mirrored)
 
     def tint_blue(channel: np.ndarray) -> np.ndarray:
-        colored = np.zeros((*channel.shape, 3), dtype=np.float32)
-        colored[..., 2] = channel
-        return colored
+        base = np.repeat(channel[..., None], 3, axis=-1).astype(np.float32)
+        base[..., 2] = channel  # emphasize blue
+        base[..., 0] *= 0.25
+        base[..., 1] *= 0.25
+        return np.clip(base, 0.0, 1.0)
 
     def tint_red(channel: np.ndarray) -> np.ndarray:
-        colored = np.zeros((*channel.shape, 3), dtype=np.float32)
-        colored[..., 0] = channel
-        return colored
+        base = np.repeat(channel[..., None], 3, axis=-1).astype(np.float32)
+        base[..., 0] = channel  # emphasize red
+        base[..., 1] *= 0.25
+        base[..., 2] *= 0.25
+        return np.clip(base, 0.0, 1.0)
 
     overlap = tint_blue(left) + tint_red(right_mirrored)
     overlap = np.clip(overlap, 0.0, 1.0)
@@ -203,14 +207,18 @@ def stereo_pair_display(
         return config, x, y, direction
 
     def tint_blue(channel: np.ndarray) -> np.ndarray:
-        colored = np.zeros((*channel.shape, 3), dtype=np.float32)
-        colored[..., 2] = channel
-        return colored
+        base = np.repeat(channel[..., None], 3, axis=-1).astype(np.float32)
+        base[..., 2] = channel
+        base[..., 0] *= 0.25
+        base[..., 1] *= 0.25
+        return np.clip(base, 0.0, 1.0)
 
     def tint_red(channel: np.ndarray) -> np.ndarray:
-        colored = np.zeros((*channel.shape, 3), dtype=np.float32)
-        colored[..., 0] = channel
-        return colored
+        base = np.repeat(channel[..., None], 3, axis=-1).astype(np.float32)
+        base[..., 0] = channel
+        base[..., 1] *= 0.25
+        base[..., 2] *= 0.25
+        return np.clip(base, 0.0, 1.0)
 
     def resize_axis(ax, width_px: float, height_px: float) -> None:
         """Resize an Axes to a specific pixel size while keeping it centered over its original slot."""
@@ -734,7 +742,7 @@ def stereo_pair_display(
 
             if show_gray:
                 right_flipped = np.fliplr(right_original)
-                mixed_gray = np.clip((left + right_flipped) / 2.0, 0.0, 1.0)
+                mixed_gray = np.clip(left + right_flipped, 0.0, 1.0)
                 overlap_ax.imshow(mixed_gray, cmap="gray", vmin=0.0, vmax=1.0)
                 overlap_ax.set_title("Overlap (Gray)", fontsize=12, color="#dcdcdc")
                 left_eye_ax.imshow(left, cmap="gray", vmin=0.0, vmax=1.0)
