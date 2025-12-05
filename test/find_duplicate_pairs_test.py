@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 from typing import Dict, Union
 
-from src.find_duplicate_pairs import BUNDLE_PATH as DEFAULT_BUNDLE_PATH
+from group_duplicates import BUNDLE_PATH as DEFAULT_BUNDLE_PATH
 from src.remove_duplicates import deduplicate_dataset
 
 

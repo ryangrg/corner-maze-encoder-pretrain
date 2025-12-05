@@ -1,56 +1,4 @@
 #!/usr/bin/env python3
-"""
-build_binocular_bundle.py
-
-Processes binocular PNG images into a single .pt dataset bundle.
-
-Each file should follow:
-    <session_phase>_<start_arm>_<cue_wall>_<goal_zone>_<x>_<y>_<direction>_<eye>.png
-
-Examples:
-    iti_n_x_ne_9_9_ne_l.png
-    trl_e_n_xx_3_6_n_l.png
-
-Where:
-  - session_phase: recording epoch such as `trl` (trial) or `iti` (inter-trial interval)
-  - start_arm: open arm (`n`, `e`, `s`, `w`)
-  - cue_wall: cue location (`n`, `e`, `s`, `w`, or `x` for no cue)
-  - goal_zone: accessible goal (`ne`, `nw`, `se`, `sw`, or `xx` for neutral)
-  - x, y: maze coordinates (ints)
-  - direction: n, e, s, w, ne, se, sw, nw
-  - eye: l (left) or r (right)
-
-Processing steps:
-  • Convert to grayscale
-  • Apply Gaussian blur (to model low visual acuity)
-  • Mirror the right eye horizontally
-  • Stack (left, right_mirrored) → shape (2, H, W)
-
-Output:
-  A single .pt file containing:
-  {
-      "x": Tensor [N, 2, H, W],
-      "y": Tensor [N],
-      "labels": [str],
-      "label2idx": {str:int},
-      "meta": {blur_radius, count, root}
-  }
-
-This version is notebook-friendly:
-just edit the constants below and run the whole cell.
-"""
-
-# =======================
-# === USER SETTINGS ====
-# =======================
-
-IMAGE_DIR = "/Users/ryangrgurich/VS Code Local/corner-maze-encoder-pretrain/data/images/corner-maze-render-base-iti-nocue-images"                 # directory containing PNGs
-BLUR_RADIUS = 1.5                             # Gaussian blur radius
-OUTPUT_NAME = "/Users/ryangrgurich/VS Code Local/corner-maze-encoder-pretrain/data/pt-files/corner-maze-render-base-iti-nocue-images-dataset.pt" # output path and filename
-
-# =======================
-# === SCRIPT LOGIC ======
-# =======================
 
 import re
 from collections import defaultdict
@@ -61,6 +9,78 @@ import torch
 from PIL import Image, ImageFilter
 from torchvision.transforms import functional as TF
 
+import dataset_io
+
+"""
+create_dataset.py
+
+Load stereoscopic PNG files, pre-process them (grayscale, blur, right-eye mirror),
+and write a dataset bundle that downstream scripts (visualizer, classifier, embedding
+export) can consume. The final bundle is persisted via `dataset_io.save_bundle(...)`
+so tensors live in `data/datasets/...` alongside a JSON metadata file.
+
+Filename template:
+    <session>_<start>_<cue>_<goal>_<x>_<y>_<direction>_<eye>.png
+
+Key conventions:
+  - session_phase: `trl`, `iti`, etc.
+  - start_arm / cue_wall / goal_zone: maze metadata tokens
+  - x, y: integer maze coordinates
+  - direction: n, e, s, w, ne, se, sw, nw
+  - eye: l (left) or r (right)
+
+Processing pipeline:
+  • Convert both eyes to grayscale
+  • Optionally apply Gaussian blur
+  • Mirror the right eye so both channels align in the same orientation
+  • Stack into tensors shaped (2, H, W)
+
+Bundle payload schema:
+    payload = {
+        "x": X,
+        "y": Y,
+        "labels": label_ids,
+        "label_names": label_names,
+        "labels2label_names": labels2label_names,
+        "meta": {
+            "blur_radius": BLUR_RADIUS,
+            "stack_len": X.shape[0],
+            "label_names_count": len(label_names),
+            "config_fields": list(CONFIG_FIELDS),
+            "source_images": str(IMAGE_DIR),
+            "per_channel_tolerance": None,
+            "mean_tolerance": None,
+        },
+    }
+  • x: Tensor shaped [N, 2, H, W] containing left/right grayscale channels (right eye mirrored).
+  • y: Tensor shaped [N] with remapped label IDs (0..num_classes-1) aligned with x.
+  • labels: Original integer label IDs (pre-remap) in dataset order (useful when reapplying updates).
+  • label_names: Slugified filename strings (“config_x_y_direction”) – unique per stereo pair.
+  • labels2label_names: Dict[label_id -> sorted list of associated label names].
+  • meta: Auxiliary metadata dictionary.
+      - blur_radius: Float blur radius applied to each eye before stacking.
+      - stack_len: Number of stereo pairs (equals len(x)).
+      - label_names_count: Number of label_name entries.
+      - config_fields: Ordered list of config tokens (session, start, cue, goal) used in slug generation.
+      - source_images: String path to the root directory scanned for PNGs.
+      - per_channel_tolerance / mean_tolerance placeholders (filled after grouping if desired).
+      - Additional keys can be added freely (dataset_io persists everything in JSON).
+
+Edit the constants below and run the script/notebook cell to regenerate the bundle.
+"""
+
+# =======================
+# === USER SETTINGS ====
+# =======================
+# Update these paths for your local setup as needed
+ROOT = Path(__file__).resolve().parents[1]
+IMAGE_DIR = ROOT / "data/images/corner-maze-render-base-images"
+BLUR_RADIUS = 1.5
+OUTPUT_DATASET_DIR = ROOT / "data/datasets/corner-maze-render-base-images"
+
+# =======================
+# === SCRIPT LOGIC ======
+# =======================
 
 # --- Filename pattern ---
 FNAME_RE = re.compile(
@@ -93,26 +113,32 @@ PairKey = Tuple[ConfigTuple, int, int, int]
 
 
 def normalize_config(match: re.Match) -> ConfigTuple:
+    """Extract the config tuple (session, start, cue, goal) from a filename match."""
     return tuple(match.group(field).lower() for field in CONFIG_FIELDS)  # type: ignore[arg-type]
 
 
 def config_to_slug(config: ConfigTuple) -> str:
+    """Convert a config tuple into the slug used in label names."""
     return "_".join(config)
 
 
 def config_to_metadata(config: ConfigTuple) -> Dict[str, str]:
+    """Map config fields to a metadata dict stored alongside each label."""
     data = {field: value for field, value in zip(CONFIG_FIELDS, config)}
     data["config_slug"] = config_to_slug(config)
+    # Additional metadata can be added here if needed
     return data
 
 
 def key_to_label(key: PairKey) -> str:
+    """Generate the canonical label string for a (config, x, y, direction) key."""
     cfg, x, y, d = key
     return f"{config_to_slug(cfg)}_{x}_{y}_{d}"
 
 # Index all left/right image pairs in the given directory
 # Returns a dict mapping (config tuple, x, y, direction) -> {"left": Path, "right": Path}
 def index_pairs(root: Path) -> Dict[PairKey, Dict[str, Path]]:
+    """Scan the image directory and collect complete left/right-eye pairs."""
     pairs: Dict[PairKey, Dict[str, Path]] = {}
     for p in root.rglob("*.png"):
         m = FNAME_RE.match(p.name)
@@ -139,6 +165,7 @@ def index_pairs(root: Path) -> Dict[PairKey, Dict[str, Path]]:
 # Here we are loading and processing each image pair and returning a tensor of size (2, H, W)
 # Convert images to grayscale, apply Gaussian blur if specified, and mirror the right eye image
 def load_and_process_pair(left_path: Path, right_path: Path, blur_radius: float) -> torch.Tensor:
+    """Load, grayscale, blur, and stack a single stereo pair."""
     # Load images and convert to grayscale
     left_img = Image.open(left_path).convert("L")
     right_img = Image.open(right_path).convert("L")
@@ -157,85 +184,64 @@ def load_and_process_pair(left_path: Path, right_path: Path, blur_radius: float)
     right_t = TF.to_tensor(right_img).float()
     return torch.cat([left_t, right_t], dim=0)  # (2, H, W)
 
+root = Path(IMAGE_DIR)
+if not root.exists():
+    raise FileNotFoundError(f"Image directory not found: {root}")
 
-def main(image_dir: str, blur_radius: float, output_name: str):
-    root = Path(image_dir)
-    if not root.exists():
-        raise FileNotFoundError(f"Image directory not found: {root}")
+pairs = index_pairs(root)
+if not pairs:
+    raise RuntimeError("No complete left/right pairs found in directory.")
 
-    pairs = index_pairs(root)
-    if not pairs:
-        raise RuntimeError("No complete left/right pairs found in directory.")
+keys = sorted(pairs.keys())
+label_names: List[str] = []
+name_to_id: Dict[str, int] = {}
+for idx, key in enumerate(keys):
+    label = key_to_label(key)
+    label_names.append(label)
+    name_to_id[label] = idx
 
-    keys = sorted(pairs.keys())
-    label_names: List[str] = []
-    name_to_id: Dict[str, int] = {}
-    config_lookup: Dict[int, Dict[str, str]] = {}
-    for idx, key in enumerate(keys):
-        label = key_to_label(key)
-        label_names.append(label)
-        name_to_id[label] = idx
-        config_lookup[idx] = config_to_metadata(key[0])
+print(f"[INFO] Found {len(keys)} complete pairs in {root}")
 
-    print(f"[INFO] Found {len(keys)} complete pairs in {root}")
+xs: List[torch.Tensor] = []
+label_ids: List[int] = []
+for i, key in enumerate(keys, 1):
+    pair = pairs[key]
+    t = load_and_process_pair(pair["left"], pair["right"], BLUR_RADIUS)
+    xs.append(t)
+    label_ids.append(name_to_id[key_to_label(key)])
+    if i % 200 == 0 or i == len(keys):
+        print(f"[INFO] Processed {i}/{len(keys)}")
 
-    xs: List[torch.Tensor] = []
-    label_ids: List[int] = []
-    for i, key in enumerate(keys, 1):
-        pair = pairs[key]
-        t = load_and_process_pair(pair["left"], pair["right"], blur_radius)
-        xs.append(t)
-        label_ids.append(name_to_id[key_to_label(key)])
-        if i % 200 == 0 or i == len(keys):
-            print(f"[INFO] Processed {i}/{len(keys)}")
+X = torch.stack(xs)
+Y = torch.tensor(label_ids, dtype=torch.long)
 
-    X = torch.stack(xs)
-    Y = torch.tensor(label_ids, dtype=torch.long)
+catalog_builder: Dict[int, set] = defaultdict(set)
+for label_id, description in zip(label_ids, label_names):
+    catalog_builder[label_id].add(description)
+labels2label_names: Dict[int, List[str]] = {
+    label_id: sorted(descriptions)
+    for label_id, descriptions in catalog_builder.items()
+}
 
-    catalog_builder: Dict[int, set] = defaultdict(set)
-    for label_id, description in zip(label_ids, label_names):
-        catalog_builder[label_id].add(description)
-    label_catalog: Dict[int, Dict[str, object]] = {}
-    for label_id, descriptions in catalog_builder.items():
-        entry = dict(config_lookup.get(label_id, {}))
-        entry["descriptions"] = sorted(descriptions)
-        label_catalog[label_id] = entry
-    label2idx = {
-        description: label_id
-        for label_id, info in label_catalog.items()
-        for description in info["descriptions"]
-    }
-    idx2label = {
-        label_id: info["descriptions"][0]
-        for label_id, info in label_catalog.items()
-    }
+payload = {
+    "x": X,
+    "y": Y,
+    "labels": label_ids,
+    "label_names": label_names,
+    "labels2label_names": labels2label_names,
+    "meta": {
+        "blur_radius": BLUR_RADIUS,
+        "stack_len": X.shape[0],
+        "label_names_count": len(label_names),
+        "config_fields": list(CONFIG_FIELDS),
+        "source_images": str(IMAGE_DIR),
+        "per_channel_tolerance": None,
+        "mean_tolerance": None,
+    },
+}
 
-    payload = {
-        "x": X,
-        "y": Y,
-        "labels": label_ids,
-        "label_names": label_names,
-        "label_catalog": label_catalog,
-        "label2idx": label2idx,
-        "idx2label": idx2label,
-        "meta": {
-            "blur_radius": blur_radius,
-            "count": len(label_names),
-            "label_dtype": str(Y.dtype),
-            "catalog_size": len(label_catalog),
-            "config_fields": list(CONFIG_FIELDS),
-        },
-    }
+dataset_io.save_bundle(payload, OUTPUT_DATASET_DIR)
 
-    out_path = Path(output_name)
-    out_path.parent.mkdir(parents=True, exist_ok=True)  # <-- ensures dirs exist
-    torch.save(payload, out_path)
-
-    print(f"[DONE] Saved {out_path.resolve()}  ->  x{tuple(X.shape)}, y{tuple(Y.shape)}")
-    print(f"[DONE] Example label_names: {label_names[:3]}")
-    print(f"[DONE] Example label: {label_ids[:3]}")
-
-
-# Automatically run when executed or pasted in a notebook cell
-if __name__ == "__main__":
-    main(IMAGE_DIR, BLUR_RADIUS, OUTPUT_NAME)
+print(f"[DONE] Saved dataset to {OUTPUT_DATASET_DIR.resolve()}  ->  x{tuple(X.shape)}, y{tuple(Y.shape)}")
+print(f"[DONE] Example label_names: {label_names[:3]}")
+print(f"[DONE] Example label: {label_ids[:3]}")

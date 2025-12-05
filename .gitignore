@@ -27,6 +27,8 @@ logs/
 
 # Local datasets or generated assets
 outputs/
+# test scripts
+test/
 
 # Files
 .png
