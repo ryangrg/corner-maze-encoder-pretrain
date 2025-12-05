@@ -29,6 +29,9 @@ logs/
 outputs/
 # test scripts
 test/
+# Local image directories
+data/images/corner-maze-render-base-images/
+data/images/corner-maze-render-base-iti-nocue-images/
 
 # Files
 *.png
