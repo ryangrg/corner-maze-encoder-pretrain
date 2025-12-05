@@ -31,4 +31,4 @@ outputs/
 test/
 
 # Files
-.png
+*.png
