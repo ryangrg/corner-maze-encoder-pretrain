@@ -29,6 +29,10 @@ logs/
 outputs/
 # test scripts
 test/
+# Local image directories
+data/images/corner-maze-render-base-images/
 
 # Files
 *.png
+data/datasets/*/x.npy # optional: ignore future copies
+data/datasets/*/y.npy

@@ -18,9 +18,8 @@ import torch
 import dataset_io
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_DATASET_DIR = ROOT_DIR / "data/datasets/corner-maze-render-base-images-regrouped"
-DEFAULT_GROUPING_CSV = DEFAULT_DATASET_DIR / f"{DEFAULT_DATASET_DIR.name}.csv"
-DEFAULT_OUTPUT_DIR = ROOT_DIR / "data/datasets/corner-maze-render-base-images-consolidated"
+DEFAULT_DATASET_DIR = ROOT_DIR / "data/datasets/corner-maze-render-base-images-regrouped-ds"
+DEFAULT_OUTPUT_DIR = ROOT_DIR / "data/datasets/corner-maze-render-base-images-consolidated-ds"
 
 
 def _load_groups(csv_path: Path) -> List[List[str]]:
@@ -59,7 +58,7 @@ def build_median_bundle(
     name_to_index = {name: idx for idx, name in enumerate(label_names)}
 
     if csv_path is None:
-        csv_path = DEFAULT_GROUPING_CSV
+        csv_path = source_dir / f"{source_dir.name.removesuffix("-ds")}.csv"
 
     csv_path = Path(csv_path).expanduser().resolve()
     raw_groups = _load_groups(csv_path)

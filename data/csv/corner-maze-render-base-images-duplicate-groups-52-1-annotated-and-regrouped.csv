@@ -3,7 +3,10 @@ modified during manual review.
 Unless otherwise noted all clusters held pose detection in an excellent manner. Difference arise
 from barriers causing lighting and blurring changes.
 
-ITI & UNCUED TRIAL GROUPS
+CUED TRIALS GROUPS
+Regrouped long reflections on barriers when they were close and obvious and not distributed in a
+bunch of distal noise. Did not regroup spot reflections from barriers. If lighting changed all of
+the track lighting then regrouped.
 
 (1/262) Checked: Subtle corner brightness to dull but regrouped different than all dark.
 trl_e_n_xx_1_1_3,trl_e_n_xx_1_11_2,trl_n_n_xx_1_1_3,trl_n_n_xx_1_11_2,trl_s_n_xx_1_1_3,trl_s_n_xx_1_11_2,trl_w_n_xx_1_1_3,trl_w_n_xx_1_11_2,iti_w_x_nw_11_1_0,iti_w_x_sw_1_1_3,iti_w_x_xx_1_11_2,iti_w_x_xx_11_11_1,trl_n_x_xx_1_1_3,trl_n_x_xx_1_11_2,trl_n_x_xx_11_1_0,trl_n_x_xx_11_11_1
@@ -614,220 +617,187 @@ trl_s_n_xx_4_6_1
 trl_w_n_xx_4_6_1
 
 (184/262) Checked: track differences enough to regroup.
-SINGLETON FROM ALGORITHM CHECK
 trl_s_n_xx_5_6_3
 trl_w_n_xx_5_6_3
-trl_e_n_xx_4_6_1
-trl_e_n_xx_5_6_0
-trl_e_n_xx_5_6_3
-trl_e_n_xx_6_9_3
-trl_e_n_xx_6_10_0
-trl_e_n_xx_6_10_1
-trl_e_n_xx_6_10_2
-trl_e_n_xx_6_10_3
-trl_n_n_xx_6_6_1
-trl_n_n_xx_6_6_2
-trl_n_n_xx_6_6_3
-trl_s_n_xx_5_6_0
-trl_s_n_xx_6_5_0
-trl_s_n_xx_6_5_1
-trl_s_n_xx_6_5_3
-trl_s_n_xx_6_6_0
-trl_s_n_xx_6_6_1
-trl_s_n_xx_6_6_3
-trl_s_n_xx_6_7_0
-trl_s_n_xx_6_7_1
-trl_s_n_xx_6_7_3
-trl_w_n_xx_4_6_3
-trl_w_n_xx_5_6_0
-trl_w_n_xx_5_6_1
-trl_w_n_xx_6_2_0
-trl_w_n_xx_6_2_1
-trl_w_n_xx_6_2_2
-trl_w_n_xx_6_2_3
-trl_w_n_xx_6_3_1
+
+ITI EXP AND NOCUE GROUPS
 
 (185/262) Checked: No matching duplicate in other groups.
-labels in second line are slight brighter in right eye far monitor.
-barrier difference between groups.
-iti_w_x_nw_10_6_1,iti_w_x_sw_2_6_3,iti_w_x_xx_2_6_3,iti_w_x_xx_6_10_2,iti_w_x_xx_10_6_1
-iti_w_x_nw_6_2_0,iti_w_x_sw_6_2_0,trl_n_x_xx_6_2_0,trl_n_x_xx_6_10_2
-
-(186/262) Checked: No matching duplicate in other groups.
 labels in second line are sharper in monitor in central view area.
 barrier difference between groups.
 iti_w_x_nw_10_6_2,iti_w_x_sw_2_6_0,iti_w_x_xx_2_6_0,iti_w_x_xx_6_10_3,iti_w_x_xx_10_6_2
-iti_w_x_nw_6_2_1,iti_w_x_sw_6_2_1,trl_n_x_xx_6_2_1,trl_n_x_xx_6_10_3
+exp_x_x_xx_2_6_0,exp_x_x_xx_6_2_1,exp_x_x_xx_6_10_3,exp_x_x_xx_10_6_2,iti_w_x_nw_6_2_1,iti_w_x_sw_6_2_1,trl_n_x_xx_6_2_1,trl_n_x_xx_6_10_3
 
-(187/262) Checked: No matching duplicate in other groups.
+(186/262) Checked: No matching duplicate in other groups.
 labels in second line are sharper in left most monitor in left eye.
 barrier difference between groups.
 iti_w_x_nw_10_6_3,iti_w_x_sw_2_6_1,iti_w_x_xx_2_6_1,iti_w_x_xx_6_10_0,iti_w_x_xx_10_6_3,
-iti_w_x_nw_6_2_2,iti_w_x_sw_6_2_2,trl_n_x_xx_6_2_2,trl_n_x_xx_6_10_0
+exp_x_x_xx_2_6_1,exp_x_x_xx_6_2_2,exp_x_x_xx_6_10_0,exp_x_x_xx_10_6_3,iti_w_x_nw_6_2_2,iti_w_x_sw_6_2_2,trl_n_x_xx_6_2_2,trl_n_x_xx_6_10_0
+
+(187/262) Checked: No matching duplicate in other groups.
+exp_x_x_xx_2_6_2,exp_x_x_xx_6_2_3,exp_x_x_xx_6_10_1,exp_x_x_xx_10_6_0,iti_w_x_nw_6_2_3,iti_w_x_nw_10_6_0,iti_w_x_sw_2_6_2,iti_w_x_sw_6_2_3,iti_w_x_xx_2_6_2,iti_w_x_xx_6_10_1,iti_w_x_xx_10_6_0,trl_n_x_xx_6_2_3,trl_n_x_xx_6_10_1
 
 (188/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_6_2_3,iti_w_x_nw_10_6_0,iti_w_x_sw_2_6_2,iti_w_x_sw_6_2_3,iti_w_x_xx_2_6_2,iti_w_x_xx_6_10_1,iti_w_x_xx_10_6_0,trl_n_x_xx_6_2_3,trl_n_x_xx_6_10_1
+labels in second line are slight brighter in right eye far monitor.
+barrier difference between groups.
+iti_w_x_nw_10_6_1,iti_w_x_sw_2_6_3,iti_w_x_xx_2_6_3,iti_w_x_xx_6_10_2,iti_w_x_xx_10_6_1
+exp_x_x_xx_2_6_3,exp_x_x_xx_6_2_0,exp_x_x_xx_6_10_2,exp_x_x_xx_10_6_1,iti_w_x_nw_6_2_0,iti_w_x_sw_6_2_0,trl_n_x_xx_6_2_0,trl_n_x_xx_6_10_2
 
 (189/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_10_2_0,iti_w_x_sw_2_2_3,iti_w_x_xx_2_10_2,iti_w_x_xx_10_10_1,trl_n_x_xx_2_2_3,trl_n_x_xx_2_10_2,trl_n_x_xx_10_2_0,trl_n_x_xx_10_10_1
+exp_x_x_xx_1_1_0,exp_x_x_xx_1_11_3,exp_x_x_xx_11_1_1,exp_x_x_xx_11_11_2,iti_w_x_nw_11_1_1,iti_w_x_sw_1_1_0,iti_w_x_xx_1_11_3,iti_w_x_xx_11_11_2,trl_n_x_xx_1_1_0,trl_n_x_xx_1_11_3,trl_n_x_xx_11_1_1,trl_n_x_xx_11_11_2
 
 (190/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_10_2_1,iti_w_x_sw_2_2_0,iti_w_x_xx_2_10_3,iti_w_x_xx_10_10_2,trl_n_x_xx_2_2_0,trl_n_x_xx_2_10_3,trl_n_x_xx_10_2_1,trl_n_x_xx_10_10_2
+exp_x_x_xx_1_1_1,exp_x_x_xx_1_11_0,exp_x_x_xx_11_1_2,exp_x_x_xx_11_11_3,iti_w_x_nw_11_1_2,iti_w_x_sw_1_1_1,iti_w_x_xx_1_11_0,iti_w_x_xx_11_11_3,trl_n_x_xx_1_1_1,trl_n_x_xx_1_11_0,trl_n_x_xx_11_1_2,trl_n_x_xx_11_11_3
 
 (191/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_10_2_2,iti_w_x_sw_2_2_1,iti_w_x_xx_2_10_0,iti_w_x_xx_10_10_3,trl_n_x_xx_2_2_1,trl_n_x_xx_2_10_0,trl_n_x_xx_10_2_2,trl_n_x_xx_10_10_3
+exp_x_x_xx_1_1_2,exp_x_x_xx_1_11_1,exp_x_x_xx_11_1_3,exp_x_x_xx_11_11_0,iti_w_x_nw_11_1_3,iti_w_x_sw_1_1_2,iti_w_x_xx_1_11_1,iti_w_x_xx_11_11_0,trl_n_x_xx_1_1_2,trl_n_x_xx_1_11_1,trl_n_x_xx_11_1_3,trl_n_x_xx_11_11_0
 
-(192/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_10_2_3,iti_w_x_sw_2_2_2,iti_w_x_xx_2_10_1,iti_w_x_xx_10_10_0,trl_n_x_xx_2_2_2,trl_n_x_xx_2_10_1,trl_n_x_xx_10_2_3,trl_n_x_xx_10_10_0
+(192/262) Not reviewed
+exp_x_x_xx_1_1_3,exp_x_x_xx_1_11_2,exp_x_x_xx_11_1_0,exp_x_x_xx_11_11_1,iti_w_x_nw_11_1_0,iti_w_x_sw_1_1_3,iti_w_x_xx_1_11_2,iti_w_x_xx_11_11_1,trl_n_x_xx_1_1_3,trl_n_x_xx_1_11_2,trl_n_x_xx_11_1_0,trl_n_x_xx_11_11_1
 
 (193/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_10_3_0,iti_w_x_sw_3_2_3,iti_w_x_xx_2_9_2,iti_w_x_xx_9_10_1,trl_n_x_xx_2_9_2,trl_n_x_xx_3_2_3,trl_n_x_xx_9_10_1,trl_n_x_xx_10_3_0
+exp_x_x_xx_2_2_0,exp_x_x_xx_2_10_3,exp_x_x_xx_10_2_1,exp_x_x_xx_10_10_2,iti_w_x_nw_10_2_1,iti_w_x_sw_2_2_0,iti_w_x_xx_2_10_3,iti_w_x_xx_10_10_2,trl_n_x_xx_2_2_0,trl_n_x_xx_2_10_3,trl_n_x_xx_10_2_1,trl_n_x_xx_10_10_2
 
 (194/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_10_3_1,iti_w_x_sw_3_2_0,iti_w_x_xx_2_9_3,iti_w_x_xx_9_10_2,trl_n_x_xx_2_9_3,trl_n_x_xx_3_2_0,trl_n_x_xx_9_10_2,trl_n_x_xx_10_3_1
+exp_x_x_xx_2_2_1,exp_x_x_xx_2_10_0,exp_x_x_xx_10_2_2,exp_x_x_xx_10_10_3,iti_w_x_nw_10_2_2,iti_w_x_sw_2_2_1,iti_w_x_xx_2_10_0,iti_w_x_xx_10_10_3,trl_n_x_xx_2_2_1,trl_n_x_xx_2_10_0,trl_n_x_xx_10_2_2,trl_n_x_xx_10_10_3
 
 (195/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_10_3_2,iti_w_x_sw_3_2_1,iti_w_x_xx_2_9_0,iti_w_x_xx_9_10_3,trl_n_x_xx_2_9_0,trl_n_x_xx_3_2_1,trl_n_x_xx_9_10_3,trl_n_x_xx_10_3_2
+exp_x_x_xx_2_2_2,exp_x_x_xx_2_10_1,exp_x_x_xx_10_2_3,exp_x_x_xx_10_10_0,iti_w_x_nw_10_2_3,iti_w_x_sw_2_2_2,iti_w_x_xx_2_10_1,iti_w_x_xx_10_10_0,trl_n_x_xx_2_2_2,trl_n_x_xx_2_10_1,trl_n_x_xx_10_2_3,trl_n_x_xx_10_10_0
 
 (196/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_10_3_3,iti_w_x_sw_3_2_2,iti_w_x_xx_2_9_1,iti_w_x_xx_9_10_0,trl_n_x_xx_2_9_1,trl_n_x_xx_3_2_2,trl_n_x_xx_9_10_0,trl_n_x_xx_10_3_3
+exp_x_x_xx_2_2_3,exp_x_x_xx_2_10_2,exp_x_x_xx_10_2_0,exp_x_x_xx_10_10_1,iti_w_x_nw_10_2_0,iti_w_x_sw_2_2_3,iti_w_x_xx_2_10_2,iti_w_x_xx_10_10_1,trl_n_x_xx_2_2_3,trl_n_x_xx_2_10_2,trl_n_x_xx_10_2_0,trl_n_x_xx_10_10_1
 
 (197/262) Checked: No matching duplicate in other groups.
-second row barrier clipping just a tad in one monitor.
-iti_w_x_nw_10_4_0,iti_w_x_sw_4_2_3,iti_w_x_xx_2_8_2,iti_w_x_xx_8_10_1,trl_n_x_xx_4_2_3,trl_n_x_xx_8_10_1
-trl_n_x_xx_2_8_2,trl_n_x_xx_10_4_0
+exp_x_x_xx_2_3_0,exp_x_x_xx_3_10_3,exp_x_x_xx_9_2_1,exp_x_x_xx_10_9_2,iti_w_x_nw_9_2_1,iti_w_x_sw_2_3_0,iti_w_x_xx_3_10_3,iti_w_x_xx_10_9_2,trl_n_x_xx_2_3_0,trl_n_x_xx_3_10_3,trl_n_x_xx_9_2_1,trl_n_x_xx_10_9_2
 
 (198/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_10_4_1,iti_w_x_sw_4_2_0,iti_w_x_xx_2_8_3,iti_w_x_xx_8_10_2,trl_n_x_xx_2_8_3,trl_n_x_xx_4_2_0,trl_n_x_xx_8_10_2,trl_n_x_xx_10_4_1
+exp_x_x_xx_2_3_1,exp_x_x_xx_3_10_0,exp_x_x_xx_9_2_2,exp_x_x_xx_10_9_3,iti_w_x_nw_9_2_2,iti_w_x_sw_2_3_1,iti_w_x_xx_3_10_0,iti_w_x_xx_10_9_3,trl_n_x_xx_2_3_1,trl_n_x_xx_3_10_0,trl_n_x_xx_9_2_2,trl_n_x_xx_10_9_3
 
 (199/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_10_4_2,iti_w_x_sw_4_2_1,iti_w_x_xx_2_8_0,iti_w_x_xx_8_10_3,trl_n_x_xx_2_8_0,trl_n_x_xx_4_2_1,trl_n_x_xx_8_10_3,trl_n_x_xx_10_4_2
+exp_x_x_xx_2_3_2,exp_x_x_xx_3_10_1,exp_x_x_xx_9_2_3,exp_x_x_xx_10_9_0,iti_w_x_nw_9_2_3,iti_w_x_sw_2_3_2,iti_w_x_xx_3_10_1,iti_w_x_xx_10_9_0,trl_n_x_xx_2_3_2,trl_n_x_xx_3_10_1,trl_n_x_xx_9_2_3,trl_n_x_xx_10_9_0
 
 (200/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_10_4_3,iti_w_x_sw_4_2_2,iti_w_x_xx_2_8_1,iti_w_x_xx_8_10_0,trl_n_x_xx_2_8_1,trl_n_x_xx_4_2_2,trl_n_x_xx_8_10_0,trl_n_x_xx_10_4_3
+exp_x_x_xx_2_3_3,exp_x_x_xx_3_10_2,exp_x_x_xx_9_2_0,exp_x_x_xx_10_9_1,iti_w_x_nw_9_2_0,iti_w_x_sw_2_3_3,iti_w_x_xx_3_10_2,iti_w_x_xx_10_9_1,trl_n_x_xx_2_3_3,trl_n_x_xx_3_10_2,trl_n_x_xx_9_2_0,trl_n_x_xx_10_9_1
 
-(201/262) Not reviewed
-iti_w_x_nw_11_1_0,iti_w_x_sw_1_1_3,iti_w_x_xx_1_11_2,iti_w_x_xx_11_11_1,trl_n_x_xx_1_1_3,trl_n_x_xx_1_11_2,trl_n_x_xx_11_1_0,trl_n_x_xx_11_11_1
+(201/262) Checked: No matching duplicate in other groups.
+exp_x_x_xx_2_4_0,exp_x_x_xx_4_10_3,exp_x_x_xx_8_2_1,exp_x_x_xx_10_8_2,iti_w_x_nw_8_2_1,iti_w_x_sw_2_4_0,iti_w_x_xx_4_10_3,iti_w_x_xx_10_8_2,trl_n_x_xx_2_4_0,trl_n_x_xx_4_10_3,trl_n_x_xx_8_2_1,trl_n_x_xx_10_8_2
 
 (202/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_11_1_1,iti_w_x_sw_1_1_0,iti_w_x_xx_1_11_3,iti_w_x_xx_11_11_2,trl_n_x_xx_1_1_0,trl_n_x_xx_1_11_3,trl_n_x_xx_11_1_1,trl_n_x_xx_11_11_2
+exp_x_x_xx_2_4_1,exp_x_x_xx_4_10_0,exp_x_x_xx_8_2_2,exp_x_x_xx_10_8_3,iti_w_x_nw_8_2_2,iti_w_x_sw_2_4_1,iti_w_x_xx_4_10_0,iti_w_x_xx_10_8_3,trl_n_x_xx_2_4_1,trl_n_x_xx_4_10_0,trl_n_x_xx_8_2_2,trl_n_x_xx_10_8_3
 
 (203/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_11_1_2,iti_w_x_sw_1_1_1,iti_w_x_xx_1_11_0,iti_w_x_xx_11_11_3,trl_n_x_xx_1_1_1,trl_n_x_xx_1_11_0,trl_n_x_xx_11_1_2,trl_n_x_xx_11_11_3
-
-(204/262) Checked: No matching duplicate in other groups.
-CUED TRIALS GROUPS
-Regrouped long reflections on barriers when they were close and obvious and not distributed in a
-bunch of distal noise. Did not regroup spot reflections from barriers. If lighting changed all of
-the track lighting then regrouped.
-iti_w_x_nw_11_1_3,iti_w_x_sw_1_1_2,iti_w_x_xx_1_11_1,iti_w_x_xx_11_11_0,trl_n_x_xx_1_1_2,trl_n_x_xx_1_11_1,trl_n_x_xx_11_1_3,trl_n_x_xx_11_11_0
-
-(205/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_8_2_0,iti_w_x_sw_2_4_3,iti_w_x_xx_4_10_2,iti_w_x_xx_10_8_1,trl_n_x_xx_2_4_3,trl_n_x_xx_4_10_2,trl_n_x_xx_8_2_0,trl_n_x_xx_10_8_1
-
-(206/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_8_2_1,iti_w_x_sw_2_4_0,iti_w_x_xx_4_10_3,iti_w_x_xx_10_8_2,trl_n_x_xx_2_4_0,trl_n_x_xx_4_10_3,trl_n_x_xx_8_2_1,trl_n_x_xx_10_8_2
-
-(207/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_8_2_2,iti_w_x_sw_2_4_1,iti_w_x_xx_4_10_0,iti_w_x_xx_10_8_3,trl_n_x_xx_2_4_1,trl_n_x_xx_4_10_0,trl_n_x_xx_8_2_2,trl_n_x_xx_10_8_3
-
-(208/262) Checked: No matching duplicate in other groups.
 Second row barrier clipping left overhead monitor.
-iti_w_x_nw_8_2_3,iti_w_x_sw_2_4_2,iti_w_x_xx_4_10_1,iti_w_x_xx_10_8_0,trl_n_x_xx_4_10_1,trl_n_x_xx_8_2_3,
+exp_x_x_xx_2_4_2,exp_x_x_xx_4_10_1,exp_x_x_xx_8_2_3,exp_x_x_xx_10_8_0,iti_w_x_nw_8_2_3,iti_w_x_sw_2_4_2,iti_w_x_xx_4_10_1,iti_w_x_xx_10_8_0,trl_n_x_xx_4_10_1,trl_n_x_xx_8_2_3,
 trl_n_x_xx_2_4_2,trl_n_x_xx_10_8_0
 
+(204/262) Checked: No matching duplicate in other groups.
+exp_x_x_xx_2_4_3,exp_x_x_xx_4_10_2,exp_x_x_xx_8_2_0,exp_x_x_xx_10_8_1,iti_w_x_nw_8_2_0,iti_w_x_sw_2_4_3,iti_w_x_xx_4_10_2,iti_w_x_xx_10_8_1,trl_n_x_xx_2_4_3,trl_n_x_xx_4_10_2,trl_n_x_xx_8_2_0,trl_n_x_xx_10_8_1
+
+(205/262) Checked: No matching duplicate in other groups.
+exp_x_x_xx_2_8_0,exp_x_x_xx_4_2_1,exp_x_x_xx_8_10_3,exp_x_x_xx_10_4_2,iti_w_x_nw_10_4_2,iti_w_x_sw_4_2_1,iti_w_x_xx_2_8_0,iti_w_x_xx_8_10_3,trl_n_x_xx_2_8_0,trl_n_x_xx_4_2_1,trl_n_x_xx_8_10_3,trl_n_x_xx_10_4_2
+
+(206/262) Checked: No matching duplicate in other groups.
+exp_x_x_xx_2_8_1,exp_x_x_xx_4_2_2,exp_x_x_xx_8_10_0,exp_x_x_xx_10_4_3,iti_w_x_nw_10_4_3,iti_w_x_sw_4_2_2,iti_w_x_xx_2_8_1,iti_w_x_xx_8_10_0,trl_n_x_xx_2_8_1,trl_n_x_xx_4_2_2,trl_n_x_xx_8_10_0,trl_n_x_xx_10_4_3
+
+(207/262) Checked: No matching duplicate in other groups.
+second row barrier clipping just a tad in one monitor.
+exp_x_x_xx_2_8_2,exp_x_x_xx_4_2_3,exp_x_x_xx_8_10_1,exp_x_x_xx_10_4_0,iti_w_x_nw_10_4_0,iti_w_x_sw_4_2_3,iti_w_x_xx_2_8_2,iti_w_x_xx_8_10_1,trl_n_x_xx_4_2_3,trl_n_x_xx_8_10_1
+trl_n_x_xx_2_8_2,trl_n_x_xx_10_4_0
+
+(208/262) Checked: No matching duplicate in other groups.
+exp_x_x_xx_2_8_3,exp_x_x_xx_4_2_0,exp_x_x_xx_8_10_2,exp_x_x_xx_10_4_1,iti_w_x_nw_10_4_1,iti_w_x_sw_4_2_0,iti_w_x_xx_2_8_3,iti_w_x_xx_8_10_2,trl_n_x_xx_2_8_3,trl_n_x_xx_4_2_0,trl_n_x_xx_8_10_2,trl_n_x_xx_10_4_1
+
 (209/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_9_2_0,iti_w_x_sw_2_3_3,iti_w_x_xx_3_10_2,iti_w_x_xx_10_9_1,trl_n_x_xx_2_3_3,trl_n_x_xx_3_10_2,trl_n_x_xx_9_2_0,trl_n_x_xx_10_9_1
-iti_w_x_nw_9_2_1,iti_w_x_sw_2_3_0,iti_w_x_xx_3_10_3,iti_w_x_xx_10_9_2,trl_n_x_xx_2_3_0,trl_n_x_xx_3_10_3,trl_n_x_xx_9_2_1,trl_n_x_xx_10_9_2
+exp_x_x_xx_2_9_0,exp_x_x_xx_3_2_1,exp_x_x_xx_9_10_3,exp_x_x_xx_10_3_2,iti_w_x_nw_10_3_2,iti_w_x_sw_3_2_1,iti_w_x_xx_2_9_0,iti_w_x_xx_9_10_3,trl_n_x_xx_2_9_0,trl_n_x_xx_3_2_1,trl_n_x_xx_9_10_3,trl_n_x_xx_10_3_2
 
 (210/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_9_2_1,iti_w_x_sw_2_3_0,iti_w_x_xx_3_10_3,iti_w_x_xx_10_9_2,trl_n_x_xx_2_3_0,trl_n_x_xx_3_10_3,trl_n_x_xx_9_2_1,trl_n_x_xx_10_9_2
+exp_x_x_xx_2_9_1,exp_x_x_xx_3_2_2,exp_x_x_xx_9_10_0,exp_x_x_xx_10_3_3,iti_w_x_nw_10_3_3,iti_w_x_sw_3_2_2,iti_w_x_xx_2_9_1,iti_w_x_xx_9_10_0,trl_n_x_xx_2_9_1,trl_n_x_xx_3_2_2,trl_n_x_xx_9_10_0,trl_n_x_xx_10_3_3
 
 (211/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_9_2_2,iti_w_x_sw_2_3_1,iti_w_x_xx_3_10_0,iti_w_x_xx_10_9_3,trl_n_x_xx_2_3_1,trl_n_x_xx_3_10_0,trl_n_x_xx_9_2_2,trl_n_x_xx_10_9_3
+exp_x_x_xx_2_9_2,exp_x_x_xx_3_2_3,exp_x_x_xx_9_10_1,exp_x_x_xx_10_3_0,iti_w_x_nw_10_3_0,iti_w_x_sw_3_2_3,iti_w_x_xx_2_9_2,iti_w_x_xx_9_10_1,trl_n_x_xx_2_9_2,trl_n_x_xx_3_2_3,trl_n_x_xx_9_10_1,trl_n_x_xx_10_3_0
 
 (212/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_9_2_3,iti_w_x_sw_2_3_2,iti_w_x_xx_3_10_1,iti_w_x_xx_10_9_0,trl_n_x_xx_2_3_2,trl_n_x_xx_3_10_1,trl_n_x_xx_9_2_3,trl_n_x_xx_10_9_0
+exp_x_x_xx_2_9_3,exp_x_x_xx_3_2_0,exp_x_x_xx_9_10_2,exp_x_x_xx_10_3_1,iti_w_x_nw_10_3_1,iti_w_x_sw_3_2_0,iti_w_x_xx_2_9_3,iti_w_x_xx_9_10_2,trl_n_x_xx_2_9_3,trl_n_x_xx_3_2_0,trl_n_x_xx_9_10_2,trl_n_x_xx_10_3_1
 
 (213/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_10_5_0,iti_w_x_sw_5_2_3,iti_w_x_xx_2_7_2,iti_w_x_xx_7_10_1,iti_w_x_xx_10_5_0,trl_n_x_xx_5_2_3,trl_n_x_xx_7_10_1
-
-(214/262) Checked: No matching duplicate in other groups.
-second row no barrier clipping in right eye.
-iti_w_x_nw_10_5_1,iti_w_x_xx_2_7_3,iti_w_x_xx_7_10_2,iti_w_x_xx_10_5_1
-iti_w_x_sw_5_2_0,trl_n_x_xx_5_2_0,trl_n_x_xx_7_10_2
-
-(215/262) Checked: No matching duplicate in other groups.
-second row no barrier clipping in left eye.
-iti_w_x_nw_10_5_2,iti_w_x_xx_2_7_0,iti_w_x_xx_7_10_3,iti_w_x_xx_10_5_2
-iti_w_x_sw_5_2_1,trl_n_x_xx_5_2_1,trl_n_x_xx_7_10_3
-
-(216/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_10_5_3,iti_w_x_sw_5_2_2,iti_w_x_xx_2_7_1,iti_w_x_xx_7_10_0,iti_w_x_xx_10_5_3,trl_n_x_xx_5_2_2,trl_n_x_xx_7_10_0
-
-(217/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_7_2_0,iti_w_x_sw_2_5_3,iti_w_x_xx_2_5_3,iti_w_x_xx_5_10_2,iti_w_x_xx_10_7_1,trl_n_x_xx_5_10_2,trl_n_x_xx_7_2_0
-
-(218/262) Checked: No matching duplicate in other groups.
 First row as barrier clipping distal right monitor.
 iti_w_x_sw_2_5_0,iti_w_x_xx_2_5_0,iti_w_x_xx_5_10_3,iti_w_x_xx_10_7_2
-iti_w_x_nw_7_2_1,trl_n_x_xx_5_10_3,trl_n_x_xx_7_2_1
+exp_x_x_xx_2_5_0,exp_x_x_xx_5_10_3,exp_x_x_xx_7_2_1,exp_x_x_xx_10_7_2,iti_w_x_nw_7_2_1,trl_n_x_xx_5_10_3,trl_n_x_xx_7_2_1
 
-(219/262) Checked: No matching duplicate in other groups.
+(214/262) Checked: No matching duplicate in other groups.
 First row distal left monitor barrier clipping.
 iti_w_x_sw_2_5_1,iti_w_x_xx_2_5_1,iti_w_x_xx_5_10_0,iti_w_x_xx_10_7_3,
-iti_w_x_nw_7_2_2,trl_n_x_xx_5_10_0,trl_n_x_xx_7_2_2
+exp_x_x_xx_2_5_1,exp_x_x_xx_5_10_0,exp_x_x_xx_7_2_2,exp_x_x_xx_10_7_3,iti_w_x_nw_7_2_2,trl_n_x_xx_5_10_0,trl_n_x_xx_7_2_2
+
+(215/262) Checked: No matching duplicate in other groups.
+exp_x_x_xx_2_5_2,exp_x_x_xx_5_10_1,exp_x_x_xx_7_2_3,exp_x_x_xx_10_7_0,iti_w_x_nw_7_2_3,iti_w_x_sw_2_5_2,iti_w_x_xx_2_5_2,iti_w_x_xx_5_10_1,iti_w_x_xx_10_7_0,trl_n_x_xx_5_10_1,trl_n_x_xx_7_2_3
+
+(216/262) Checked: No matching duplicate in other groups.
+exp_x_x_xx_2_5_3,exp_x_x_xx_5_10_2,exp_x_x_xx_7_2_0,exp_x_x_xx_10_7_1,iti_w_x_nw_7_2_0,iti_w_x_sw_2_5_3,iti_w_x_xx_2_5_3,iti_w_x_xx_5_10_2,iti_w_x_xx_10_7_1,trl_n_x_xx_5_10_2,trl_n_x_xx_7_2_0
+
+(217/262) Checked: No matching duplicate in other groups.
+second row no barrier clipping in left eye.
+iti_w_x_nw_10_5_2,iti_w_x_xx_2_7_0,iti_w_x_xx_7_10_3,iti_w_x_xx_10_5_2
+exp_x_x_xx_2_7_0,exp_x_x_xx_5_2_1,exp_x_x_xx_7_10_3,exp_x_x_xx_10_5_2,iti_w_x_sw_5_2_1,trl_n_x_xx_5_2_1,trl_n_x_xx_7_10_3
+
+(218/262) Checked: No matching duplicate in other groups.
+exp_x_x_xx_2_7_1,exp_x_x_xx_5_2_2,exp_x_x_xx_7_10_0,exp_x_x_xx_10_5_3,iti_w_x_nw_10_5_3,iti_w_x_sw_5_2_2,iti_w_x_xx_2_7_1,iti_w_x_xx_7_10_0,iti_w_x_xx_10_5_3,trl_n_x_xx_5_2_2,trl_n_x_xx_7_10_0
+
+(219/262) Checked: No matching duplicate in other groups.
+exp_x_x_xx_2_7_2,exp_x_x_xx_5_2_3,exp_x_x_xx_7_10_1,exp_x_x_xx_10_5_0,iti_w_x_nw_10_5_0,iti_w_x_sw_5_2_3,iti_w_x_xx_2_7_2,iti_w_x_xx_7_10_1,iti_w_x_xx_10_5_0,trl_n_x_xx_5_2_3,trl_n_x_xx_7_10_1
 
 (220/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_7_2_3,iti_w_x_sw_2_5_2,iti_w_x_xx_2_5_2,iti_w_x_xx_5_10_1,iti_w_x_xx_10_7_0,trl_n_x_xx_5_10_1,trl_n_x_xx_7_2_3
+second row no barrier clipping in right eye.
+iti_w_x_nw_10_5_1,iti_w_x_xx_2_7_3,iti_w_x_xx_7_10_2,iti_w_x_xx_10_5_1
+exp_x_x_xx_2_7_3,exp_x_x_xx_5_2_0,exp_x_x_xx_7_10_2,exp_x_x_xx_10_5_1,iti_w_x_sw_5_2_0,trl_n_x_xx_5_2_0,trl_n_x_xx_7_10_2
 
 (221/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_6_3_0,iti_w_x_sw_6_3_0,trl_n_x_xx_6_3_0,trl_n_x_xx_6_9_2
+exp_x_x_xx_3_6_0,exp_x_x_xx_6_3_1,exp_x_x_xx_6_9_3,exp_x_x_xx_9_6_2,iti_w_x_nw_6_3_1,iti_w_x_sw_6_3_1,trl_n_x_xx_6_3_1,trl_n_x_xx_6_9_3
 
 (222/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_6_3_1,iti_w_x_sw_6_3_1,trl_n_x_xx_6_3_1,trl_n_x_xx_6_9_3
+exp_x_x_xx_3_6_1,exp_x_x_xx_6_3_2,exp_x_x_xx_6_9_0,exp_x_x_xx_9_6_3,iti_w_x_nw_6_3_2,iti_w_x_sw_6_3_2,trl_n_x_xx_6_3_2,trl_n_x_xx_6_9_0
 
 (223/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_6_3_2,iti_w_x_sw_6_3_2,trl_n_x_xx_6_3_2,trl_n_x_xx_6_9_0
+exp_x_x_xx_3_6_2,exp_x_x_xx_6_3_3,exp_x_x_xx_6_9_1,exp_x_x_xx_9_6_0,iti_w_x_nw_6_3_3,iti_w_x_sw_6_3_3,trl_n_x_xx_6_3_3,trl_n_x_xx_6_9_1
 
 (224/262) Checked: No matching duplicate in other groups.
-iti_w_x_nw_6_3_3,iti_w_x_sw_6_3_3,trl_n_x_xx_6_3_3,trl_n_x_xx_6_9_1
+exp_x_x_xx_3_6_3,exp_x_x_xx_6_3_0,exp_x_x_xx_6_9_2,exp_x_x_xx_9_6_1,iti_w_x_nw_6_3_0,iti_w_x_sw_6_3_0,trl_n_x_xx_6_3_0,trl_n_x_xx_6_9_2
 
 (225/262) Checked: No matching duplicate in other groups.
 Second row is sharper. Looks like barrier difference.
-iti_w_x_nw_6_4_0,iti_w_x_sw_6_4_0,
-trl_n_x_xx_6_4_0,trl_n_x_xx_6_8_2
+iti_w_x_nw_6_4_1,iti_w_x_sw_6_4_1,
+exp_x_x_xx_4_6_0,exp_x_x_xx_6_4_1,exp_x_x_xx_6_8_3,exp_x_x_xx_8_6_2,trl_n_x_xx_6_4_1,trl_n_x_xx_6_8_3
 
 (226/262) Checked: No matching duplicate in other groups.
 Second row is sharper. Looks like barrier difference.
-iti_w_x_nw_6_4_1,iti_w_x_sw_6_4_1,
-trl_n_x_xx_6_4_1,trl_n_x_xx_6_8_3
-
-(227/262) Checked: No matching duplicate in other groups.
-Second row is sharper. Looks like barrier difference.
 iti_w_x_nw_6_4_2,iti_w_x_sw_6_4_2,
-trl_n_x_xx_6_4_2,trl_n_x_xx_6_8_0
+exp_x_x_xx_4_6_1,exp_x_x_xx_6_4_2,exp_x_x_xx_6_8_0,exp_x_x_xx_8_6_3,trl_n_x_xx_6_4_2,trl_n_x_xx_6_8_0
 
-(228/262) Not reviewed
-iti_w_x_nw_6_4_3,iti_w_x_sw_6_4_3,trl_n_x_xx_6_4_3,trl_n_x_xx_6_8_1
+(227/262) Not reviewed
+exp_x_x_xx_4_6_2,exp_x_x_xx_6_4_3,exp_x_x_xx_6_8_1,exp_x_x_xx_8_6_0,iti_w_x_nw_6_4_3,iti_w_x_sw_6_4_3,trl_n_x_xx_6_4_3,trl_n_x_xx_6_8_1
+
+(228/262) Checked: No matching duplicate in other groups.
+Second row is sharper. Looks like barrier difference.
+iti_w_x_nw_6_4_0,iti_w_x_sw_6_4_0,
+exp_x_x_xx_4_6_3,exp_x_x_xx_6_4_0,exp_x_x_xx_6_8_2,exp_x_x_xx_8_6_1,trl_n_x_xx_6_4_0,trl_n_x_xx_6_8_2
 
 (229/262) Checked: barrier differences enough to regroup causing monitor lighting changes.
-trl_n_x_xx_6_6_0
+exp_x_x_xx_6_6_0,exp_x_x_xx_6_6_1,exp_x_x_xx_6_6_2,exp_x_x_xx_6_6_3,trl_n_x_xx_6_6_0
 trl_n_x_xx_6_6_1
 trl_n_x_xx_6_6_2
 trl_n_x_xx_6_6_3
 
 (230/262) Checked: No differences to regroup.
-trl_n_x_xx_6_5_0,trl_n_x_xx_6_7_2
+exp_x_x_xx_5_6_0,exp_x_x_xx_6_5_1,exp_x_x_xx_6_7_3,exp_x_x_xx_7_6_2,trl_n_x_xx_6_5_1,trl_n_x_xx_6_7_3
 
 (231/262) Checked: No differences to regroup.
-trl_n_x_xx_6_5_1,trl_n_x_xx_6_7_3
+exp_x_x_xx_5_6_1,exp_x_x_xx_6_5_2,exp_x_x_xx_6_7_0,exp_x_x_xx_7_6_3,trl_n_x_xx_6_5_2,trl_n_x_xx_6_7_0
 
 (232/262) Checked: No differences to regroup.
-trl_n_x_xx_6_5_2,trl_n_x_xx_6_7_0
+exp_x_x_xx_5_6_2,exp_x_x_xx_6_5_3,exp_x_x_xx_6_7_1,exp_x_x_xx_7_6_0,trl_n_x_xx_6_5_3,trl_n_x_xx_6_7_1
 
 (233/262) Checked: No differences to regroup.
-trl_n_x_xx_6_5_3,trl_n_x_xx_6_7_1
+exp_x_x_xx_5_6_3,exp_x_x_xx_6_5_0,exp_x_x_xx_6_7_2,exp_x_x_xx_7_6_1,trl_n_x_xx_6_5_0,trl_n_x_xx_6_7_2
 
 (234/262) Not reviewed
 trl_e_n_xx_4_6_1

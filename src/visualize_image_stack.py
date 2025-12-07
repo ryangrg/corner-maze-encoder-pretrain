@@ -27,13 +27,12 @@ from typing import Dict, Iterable, List, Sequence, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from matplotlib.widgets import Button
+from matplotlib.widgets import Button, TextBox
 
 import dataset_io
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_DATASET_DIR = ROOT_DIR / "data/datasets/corner-maze-render-base-images-regrouped"
-DEFAULT_DUPLICATE_CSV = DEFAULT_DATASET_DIR / f"{DEFAULT_DATASET_DIR.name}.csv"
+DEFAULT_DATASET_DIR = ROOT_DIR / "data/datasets/corner-maze-render-base-images-consolidated-ds"
 DISPLAY_DEVICE: str = "cpu"
 
 
@@ -41,7 +40,7 @@ def load_dataset(
     bundle_dir: Path,
     *,
     device: str | torch.device = DISPLAY_DEVICE,
-) -> Tuple[torch.Tensor, List[str]]:
+) -> Tuple[torch.Tensor, List[str], List[int]]:
     """
     Load the dataset bundle directory created by dataset_io and return tensors + labels.
     """
@@ -106,16 +105,26 @@ def load_dataset(
     if len(label_names) != size:
         raise ValueError("Label count does not match tensor length.")
 
-    return stack, label_names
+    labels_tensor = payload.get("labels")
+    if labels_tensor is None:
+        label_ids = list(range(size))
+    elif isinstance(labels_tensor, torch.Tensor):
+        label_ids = [int(v) for v in labels_tensor.detach().cpu().tolist()]
+    else:
+        label_ids = [int(v) for v in labels_tensor]
+
+    if len(label_ids) != size:
+        raise ValueError("Label id count does not match tensor length.")
+
+    return stack, label_names, label_ids
 
 
-def _read_duplicate_groups(
+def _read_duplicate_csv(
     csv_path: Path,
     known_labels: Sequence[str],
 ) -> Tuple[List[List[str]], int]:
     """
-    Load duplicate rows and filter out labels that do not exist in the dataset.
-    Returns (groups, skipped_count).
+    Load duplicate rows from CSV and filter out labels not present in the dataset.
     """
     csv_path = Path(csv_path).expanduser().resolve()
     if not csv_path.exists():
@@ -140,6 +149,64 @@ def _read_duplicate_groups(
         raise RuntimeError("No duplicate groups matched dataset labels.")
 
     return groups, skipped
+
+
+def _groups_from_label_ids(
+    label_names: Sequence[str],
+    label_ids: Sequence[int],
+) -> Tuple[List[List[str]], int]:
+    """
+    Derive duplicate groups directly from label IDs stored in the dataset bundle.
+    """
+    if len(label_names) != len(label_ids):
+        raise ValueError("label_names and label_ids must be the same length.")
+
+    groups: List[List[str]] = []
+    seen: Dict[int, List[str]] = {}
+    for label, label_id in zip(label_names, label_ids):
+        seen.setdefault(int(label_id), []).append(label)
+
+    for labels in seen.values():
+        unique = list(dict.fromkeys(labels))
+        if unique:
+            groups.append(unique)
+
+    if not groups:
+        raise RuntimeError("No samples found in dataset bundle.")
+
+    return groups, 0
+
+
+def _load_duplicate_groups(
+    duplicate_csv: Path | None,
+    label_names: Sequence[str],
+    label_ids: Sequence[int],
+) -> Tuple[List[List[str]], int]:
+    """
+    Resolve duplicate groups from CSV when available, otherwise fall back to metadata.
+    """
+    if duplicate_csv is not None:
+        csv_path = Path(duplicate_csv).expanduser().resolve()
+        if csv_path.exists():
+            return _read_duplicate_csv(csv_path, label_names)
+        print(f"[WARN] Duplicate CSV not found at {csv_path}; falling back to bundle metadata.")
+    return _groups_from_label_ids(label_names, label_ids)
+
+
+def _default_duplicate_csv(bundle_dir: Path) -> Path | None:
+    """
+    Guess the duplicate CSV path that accompanies a dataset bundle.
+    """
+    bundle_dir = Path(bundle_dir).expanduser().resolve()
+    candidates = [bundle_dir / f"{bundle_dir.name}.csv"]
+    name = bundle_dir.name
+    if name.endswith("-ds"):
+        candidates.append(bundle_dir / f"{name[:-3]}.csv")
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
 
 
 def _tint_blue(channel: np.ndarray) -> np.ndarray:
@@ -185,15 +252,14 @@ def _resize_axis(ax, width_px: float, height_px: float) -> None:
 def show_duplicate_viewer(
     stack: torch.Tensor,
     label_names: Sequence[str],
+    label_ids: Sequence[int],
     *,
     duplicate_csv: Path | None = None,
 ) -> None:
     """
     Launch the duplicate group viewer, stepping through CSV-defined groups.
     """
-    csv_path = duplicate_csv or DEFAULT_DUPLICATE_CSV
-    groups, skipped = _read_duplicate_groups(csv_path, label_names)
-    groups = [[group[0]] for group in groups if group]
+    groups, skipped = _load_duplicate_groups(duplicate_csv, label_names, label_ids)
     if skipped:
         print(f"Skipped {skipped} CSV rows that no longer exist in the dataset.")
 
@@ -235,19 +301,24 @@ def show_duplicate_viewer(
 
     button_grid = outer_grid[1, 0].subgridspec(
         1,
-        4,
-        width_ratios=[1.0, 1.0, 1.0, 1.0],
+        5,
+        width_ratios=[1.0, 1.0, 1.0, 1.0, 1.4],
         wspace=0.02,
     )
     group_prev_ax = fig.add_subplot(button_grid[0, 0])
     group_next_ax = fig.add_subplot(button_grid[0, 1])
     item_prev_ax = fig.add_subplot(button_grid[0, 2])
     item_next_ax = fig.add_subplot(button_grid[0, 3])
+    group_jump_ax = fig.add_subplot(button_grid[0, 4])
     for ax in (group_prev_ax, group_next_ax, item_prev_ax, item_next_ax):
         ax.set_xticks([])
         ax.set_yticks([])
         ax.set_facecolor("#f0f0f0")
         _resize_axis(ax, width_px=80, height_px=30)
+    group_jump_ax.set_xticks([])
+    group_jump_ax.set_yticks([])
+    group_jump_ax.set_facecolor("#f0f0f0")
+    _resize_axis(group_jump_ax, width_px=120, height_px=30)
 
     group_prev_btn = Button(group_prev_ax, "Prev Group")
     group_next_btn = Button(group_next_ax, "Next Group")
@@ -256,6 +327,46 @@ def show_duplicate_viewer(
     for btn in (group_prev_btn, group_next_btn, item_prev_btn, item_next_btn):
         btn.label.set_fontsize(9)
         btn.label.set_color("#000000")
+
+    group_jump_box = TextBox(group_jump_ax, "Group #", initial="1")
+    group_jump_box.label.set_fontsize(9)
+    group_jump_box.label.set_color("#ffffff")
+    group_jump_box.text_disp.set_fontsize(10)
+    group_jump_box.text_disp.set_color("#000000")
+    group_jump_box.cursor.set_color("#303030")
+
+    jump_box_locked = False
+
+    def _update_jump_box() -> None:
+        nonlocal jump_box_locked
+        jump_box_locked = True
+        group_jump_box.set_val(str(group_idx + 1))
+        jump_box_locked = False
+
+    def _handle_jump_submit(text: str) -> None:
+        nonlocal jump_box_locked
+        if jump_box_locked:
+            return
+        stripped = text.strip()
+        if not stripped:
+            _update_jump_box()
+            return
+        try:
+            target = int(stripped)
+        except ValueError:
+            print(f"[WARN] Invalid group number: {text!r}")
+            _update_jump_box()
+            return
+        total = len(groups)
+        if total == 0:
+            return
+        index = max(0, min(total - 1, target - 1))
+        if index != group_idx:
+            _set_group(index)
+        else:
+            _update_jump_box()
+
+    group_jump_box.on_submit(_handle_jump_submit)
 
     image_grid = outer_grid[2, 0].subgridspec(1, 3, wspace=0.0)
     overlap_ax = fig.add_subplot(image_grid[0, 0])
@@ -304,14 +415,22 @@ def show_duplicate_viewer(
             f"Group {group_idx + 1}/{len(groups)} (size {len(group)}) | "
             f"Item {member_idx + 1}/{len(group)}\n{label}"
         )
+        _update_jump_box()
         fig.canvas.draw_idle()
 
-    def _shift_group(delta: int) -> None:
+    def _set_group(index: int) -> None:
         nonlocal group_idx, member_idx
         total = len(groups)
-        group_idx = (group_idx + delta) % total
+        if total == 0:
+            return
+        group_idx = max(0, min(total - 1, index))
         member_idx = 0
         _update_display()
+
+    def _shift_group(delta: int) -> None:
+        total = len(groups)
+        target = (group_idx + delta) % total
+        _set_group(target)
 
     def _shift_member(delta: int) -> None:
         nonlocal member_idx
@@ -338,17 +457,18 @@ def show_duplicate_viewer(
 
 def main(
     bundle_dir: Path = DEFAULT_DATASET_DIR,
-    duplicate_csv: Path | None = DEFAULT_DUPLICATE_CSV,
+    duplicate_csv: Path | None = None,
     device: str | torch.device = DISPLAY_DEVICE,
 ) -> None:
     bundle_dir = Path(bundle_dir).expanduser().resolve()
-    stack, label_names = load_dataset(bundle_dir, device=device)
-    csv_path = (
-        Path(duplicate_csv).expanduser().resolve()
-        if duplicate_csv is not None
-        else bundle_dir / f"{bundle_dir.name}.csv"
+    stack, label_names, label_ids = load_dataset(bundle_dir, device=device)
+    csv_path = duplicate_csv if duplicate_csv is not None else _default_duplicate_csv(bundle_dir)
+    show_duplicate_viewer(
+        stack,
+        label_names,
+        label_ids,
+        duplicate_csv=csv_path,
     )
-    show_duplicate_viewer(stack, label_names, duplicate_csv=csv_path)
 
 
 if __name__ == "__main__":
@@ -363,7 +483,7 @@ if __name__ == "__main__":
         "--duplicate-csv",
         type=Path,
         default=None,
-        help="Optional CSV listing duplicate groups (defaults to <bundle-dir>/<bundle-dir.name>.csv).",
+        help="Optional CSV listing duplicate groups (metadata fallback when omitted).",
     )
     parser.add_argument(
         "--device",

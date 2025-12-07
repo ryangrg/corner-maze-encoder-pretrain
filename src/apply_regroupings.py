@@ -19,9 +19,9 @@ import torch
 import dataset_io
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_DATASET_DIR = ROOT_DIR / "data/datasets/corner-maze-render-base-images"
+DEFAULT_DATASET_DIR = ROOT_DIR / "data/datasets/corner-maze-render-base-images-ds"
 DEFAULT_REGROUP_CSV = ROOT_DIR / "data/csv/corner-maze-render-base-images-duplicate-groups-52-1-regrouped.csv"
-DEFAULT_OUTPUT_DIR = DEFAULT_DATASET_DIR.parent / f"corner-maze-render-base-images-regrouped"
+DEFAULT_OUTPUT_DIR = DEFAULT_DATASET_DIR.parent / f"corner-maze-render-base-images-regrouped-ds"
 
 
 def _load_regroup_csv(csv_path: Path) -> List[List[str]]:
@@ -140,7 +140,7 @@ def apply_regroupings(
             "stack_len": size,
             "label_names_count": len(label_names),
             "regrouping": {
-                "csv": str(Path(regroup_csv).expanduser().resolve()),
+                "csv": str(Path(regroup_csv).resolve()),
                 "groups": len(groups),
                 "labels_changed": int(updated),
             },
@@ -158,7 +158,8 @@ def apply_regroupings(
     dataset_io.save_bundle(payload, destination)
 
     csv_source = Path(regroup_csv).expanduser().resolve()
-    csv_target = destination / f"{destination.name}.csv"
+    csv_name = destination.name[:-3] if destination.name.endswith("-ds") else destination.name
+    csv_target = destination / f"{csv_name}.csv"
     csv_target.write_text(csv_source.read_text())
 
     return {

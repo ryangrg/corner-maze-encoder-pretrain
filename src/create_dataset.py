@@ -1,16 +1,4 @@
 #!/usr/bin/env python3
-
-import re
-from collections import defaultdict
-from pathlib import Path
-from typing import Dict, List, Tuple
-
-import torch
-from PIL import Image, ImageFilter
-from torchvision.transforms import functional as TF
-
-import dataset_io
-
 """
 create_dataset.py
 
@@ -69,6 +57,18 @@ Bundle payload schema:
 Edit the constants below and run the script/notebook cell to regenerate the bundle.
 """
 
+import re
+from collections import defaultdict
+from pathlib import Path
+from typing import Dict, List, Tuple
+
+import torch
+from PIL import Image, ImageFilter
+from torchvision.transforms import functional as TF
+
+import dataset_io
+
+
 # =======================
 # === USER SETTINGS ====
 # =======================
@@ -76,7 +76,7 @@ Edit the constants below and run the script/notebook cell to regenerate the bund
 ROOT = Path(__file__).resolve().parents[1]
 IMAGE_DIR = ROOT / "data/images/corner-maze-render-base-images"
 BLUR_RADIUS = 1.5
-OUTPUT_DATASET_DIR = ROOT / "data/datasets/corner-maze-render-base-images"
+OUTPUT_DATASET_DIR = ROOT / "data/datasets/corner-maze-render-base-images-ds"
 
 # =======================
 # === SCRIPT LOGIC ======
