@@ -36,3 +36,4 @@ data/images/corner-maze-render-base-images/
 *.png
 data/datasets/*/x.npy # optional: ignore future copies
 data/datasets/*/y.npy
+data/datasets/**/*.npy # optional but recommended
