@@ -4,6 +4,7 @@ export_embeddings.py
 
 Load a trained CNN classifier (from image-classifier-cnn.py), run it in inference mode
 over the stereo dataset bundle, and export an embedding table keyed by each label name.
+Supports PyTorch checkpoints (.pt) as well as ONNX exports created by train_classifier.py.
 
 The resulting lookup is saved as a Parquet file containing:
   • label_name: configN_x_y_direction string
@@ -21,6 +22,7 @@ from typing import Any, Dict, List, Sequence, Tuple
 
 import pandas as pd
 import numpy as np
+import onnxruntime as ort
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -33,7 +35,7 @@ from torch.utils.data import DataLoader, TensorDataset
 ROOT: Path = Path(__file__).resolve().parents[1]
 DEFAULT_DATASET_PATH: Path = ROOT / "data/pt-files/corner-maze-render-base-images-dataset-median-groups.pt"
 DEFAULT_MODEL_DIR: Path = ROOT / "data/models"
-DEFAULT_MODEL_PATH: Path | None = ROOT / "data/models/stereo_cnn-median-merge-20251202-201506.pt"
+DEFAULT_MODEL_PATH: Path | None = ROOT / "data/models/stereo_cnn-median-merge-20251202-201506.onnx"
 DEFAULT_OUTPUT_DIR: Path = ROOT / "data/tables"
 
 # =======================
@@ -83,6 +85,38 @@ class StereoConvNet(nn.Module):
         return logits
 
 
+class OnnxStereoWrapper(nn.Module):
+    """
+    Wrap an ONNX Runtime session to mimic the StereoConvNet interface.
+    """
+
+    def __init__(self, session: ort.InferenceSession):
+        super().__init__()
+        self._session = session
+        inputs = session.get_inputs()
+        if not inputs:
+            raise ValueError("ONNX model has no inputs.")
+        self._input_name = inputs[0].name
+        self._output_names = [output.name for output in session.get_outputs()]
+
+    def forward(self, x: torch.Tensor, return_embedding: bool = False):
+        batch = x.detach().cpu().numpy()
+        outputs = self._session.run(self._output_names, {self._input_name: batch})
+        if not outputs:
+            raise RuntimeError("ONNX model produced no outputs.")
+
+        logits_np = outputs[0]
+        logits = torch.from_numpy(logits_np)
+        if len(outputs) > 1:
+            embedding = torch.from_numpy(outputs[1])
+        else:
+            embedding = logits
+
+        if return_embedding:
+            return logits, embedding
+        return logits
+
+
 # =======================
 # === DATA LOADING ======
 # =======================
@@ -121,12 +155,76 @@ def load_dataset(bundle_path: Path) -> Tuple[TensorDataset, Dict[str, Any]]:
     return dataset, payload
 
 
+def _remap_legacy_classifier_keys(model: StereoConvNet, state_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    """
+    Remap checkpoints saved with legacy classifier.* keys to the fc1/fc2 layout.
+    """
+    renamed_state: Dict[str, torch.Tensor] = {}
+    for key, value in state_dict.items():
+        if key.startswith("classifier."):
+            suffix = key.split(".", 2)[-1]
+            if not isinstance(value, torch.Tensor):
+                continue
+            try:
+                if value.dim() == 2:
+                    if tuple(value.shape) == tuple(model.fc1.weight.shape):
+                        renamed_state[f"fc1.{suffix}"] = value
+                    elif tuple(value.shape) == tuple(model.fc2.weight.shape):
+                        renamed_state[f"fc2.{suffix}"] = value
+                    else:
+                        if value.shape[1] == model.fc1.weight.shape[1]:
+                            if value.shape[0] == model.fc2.weight.shape[0]:
+                                renamed_state[f"fc2.{suffix}"] = value
+                            else:
+                                renamed_state[f"fc1.{suffix}"] = value
+                        else:
+                            continue
+                elif value.dim() == 1:
+                    if tuple(value.shape) == tuple(model.fc1.bias.shape):
+                        renamed_state[f"fc1.{suffix}"] = value
+                    elif tuple(value.shape) == tuple(model.fc2.bias.shape):
+                        renamed_state[f"fc2.{suffix}"] = value
+                    else:
+                        if value.shape[0] == model.fc2.bias.shape[0]:
+                            renamed_state[f"fc2.{suffix}"] = value
+                        elif value.shape[0] == model.fc1.bias.shape[0]:
+                            renamed_state[f"fc1.{suffix}"] = value
+                        else:
+                            continue
+            except Exception:
+                continue
+        else:
+            renamed_state[key] = value
+    return renamed_state
+
+
+def _load_pytorch_checkpoint(
+    model_path: Path,
+    in_channels: int,
+    num_classes: int,
+    device: torch.device,
+) -> StereoConvNet:
+    state = torch.load(model_path, map_location="cpu")
+    state_dict = state["model_state_dict"] if isinstance(state, dict) and "model_state_dict" in state else state
+
+    model = StereoConvNet(in_channels=in_channels, num_classes=num_classes)
+    renamed_state = _remap_legacy_classifier_keys(model, state_dict)
+
+    load_info = model.load_state_dict(renamed_state, strict=False)
+    if getattr(load_info, "missing_keys", None):
+        print(f"[WARN] Missing keys when loading checkpoint: {load_info.missing_keys}")
+    if getattr(load_info, "unexpected_keys", None):
+        print(f"[WARN] Unexpected keys in checkpoint: {load_info.unexpected_keys}")
+    model.to(device)
+    return model
+
+
 # =======================
 # === EMBEDDING EXPORT ==
 # =======================
 
 def extract_embeddings(
-    model: StereoConvNet,
+    model: nn.Module,
     dataloader: DataLoader,
     device: torch.device,
 ) -> torch.Tensor:
@@ -227,7 +325,7 @@ def parse_args() -> argparse.Namespace:
         "--model",
         type=Path,
         default=None,
-        help="Path to trained model checkpoint (.pt). Defaults to the newest file in DEFAULT_MODEL_DIR.",
+        help="Path to trained model checkpoint (.onnx preferred, .pt still supported). Defaults to the newest file in DEFAULT_MODEL_DIR.",
     )
     parser.add_argument(
         "--output",
@@ -254,15 +352,7 @@ def main() -> None:
 
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=False)
 
-    if args.device:
-        device = torch.device(args.device)
-    else:
-        if torch.cuda.is_available():
-            device = torch.device("cuda")
-        elif torch.backends.mps.is_available():
-            device = torch.device("mps")
-        else:
-            device = torch.device("cpu")
+    requested_device = torch.device(args.device) if args.device else None
 
     model_path = args.model
     if model_path is None:
@@ -270,74 +360,46 @@ def main() -> None:
             model_path = DEFAULT_MODEL_PATH
             print(f"[INFO] Using configured model checkpoint: {model_path}")
         else:
-            candidate_files = sorted(DEFAULT_MODEL_DIR.glob("*.pt"), key=lambda p: p.stat().st_mtime, reverse=True)
-            if not candidate_files:
-                raise FileNotFoundError(
-                    f"No .pt files found in {DEFAULT_MODEL_DIR}. Specify --model explicitly or update DEFAULT_MODEL_PATH."
+            model_path = None
+            for pattern in ("*.onnx", "*.pt"):
+                candidate_files = sorted(
+                    DEFAULT_MODEL_DIR.glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True
                 )
-            model_path = candidate_files[0]
-            print(f"[INFO] Using latest model checkpoint in directory: {model_path}")
+                if candidate_files:
+                    model_path = candidate_files[0]
+                    print(f"[INFO] Using latest {pattern} checkpoint in directory: {model_path}")
+                    break
+            if model_path is None:
+                raise FileNotFoundError(
+                    f"No .onnx or .pt files found in {DEFAULT_MODEL_DIR}. Specify --model explicitly or update DEFAULT_MODEL_PATH."
+                )
     else:
         model_path = model_path.expanduser().resolve()
         if not model_path.exists():
             raise FileNotFoundError(f"Model checkpoint not found: {model_path}")
 
-    state = torch.load(model_path, map_location="cpu")
-    state_dict = state["model_state_dict"] if isinstance(state, dict) and "model_state_dict" in state else state
-
-    # Instantiate the modern StereoConvNet (matching `image-classifier-cnn.py`).
-    model = StereoConvNet(in_channels=in_channels, num_classes=num_classes)
-
-    # Remap legacy `classifier.*` parameter keys (from older checkpoints) to the
-    # new `fc1`/`fc2` naming by matching tensor shapes where possible.
-    renamed_state: Dict[str, torch.Tensor] = {}
-    for key, value in state_dict.items():
-        if key.startswith("classifier."):
-            # suffix is typically 'weight' or 'bias'
-            suffix = key.split(".", 2)[-1]
-            if not isinstance(value, torch.Tensor):
-                continue
-            # Try to match to fc1.weight/fc2.weight shapes
-            try:
-                if value.dim() == 2:
-                    if tuple(value.shape) == tuple(model.fc1.weight.shape):
-                        renamed_state[f"fc1.{suffix}"] = value
-                    elif tuple(value.shape) == tuple(model.fc2.weight.shape):
-                        renamed_state[f"fc2.{suffix}"] = value
-                    else:
-                        # Best-effort by checking feature dimension
-                        if value.shape[1] == model.fc1.weight.shape[1]:
-                            if value.shape[0] == model.fc2.weight.shape[0]:
-                                renamed_state[f"fc2.{suffix}"] = value
-                            else:
-                                renamed_state[f"fc1.{suffix}"] = value
-                        else:
-                            # shape mismatch — skip
-                            continue
-                elif value.dim() == 1:
-                    if tuple(value.shape) == tuple(model.fc1.bias.shape):
-                        renamed_state[f"fc1.{suffix}"] = value
-                    elif tuple(value.shape) == tuple(model.fc2.bias.shape):
-                        renamed_state[f"fc2.{suffix}"] = value
-                    else:
-                        if value.shape[0] == model.fc2.bias.shape[0]:
-                            renamed_state[f"fc2.{suffix}"] = value
-                        elif value.shape[0] == model.fc1.bias.shape[0]:
-                            renamed_state[f"fc1.{suffix}"] = value
-                        else:
-                            continue
-            except Exception:
-                # On any unexpected mismatch, skip this key
-                continue
+    use_onnx = model_path.suffix.lower() == ".onnx"
+    if use_onnx:
+        device = torch.device("cpu")
+        if requested_device and requested_device.type != "cpu":
+            print(f"[WARN] Overriding requested device {requested_device} with CPU for ONNX Runtime.")
+    else:
+        if requested_device:
+            device = requested_device
         else:
-            renamed_state[key] = value
+            if torch.cuda.is_available():
+                device = torch.device("cuda")
+            elif torch.backends.mps.is_available():
+                device = torch.device("mps")
+            else:
+                device = torch.device("cpu")
+    print(f"[INFO] Using device: {device}")
 
-    load_info = model.load_state_dict(renamed_state, strict=False)
-    if getattr(load_info, "missing_keys", None):
-        print(f"[WARN] Missing keys when loading checkpoint: {load_info.missing_keys}")
-    if getattr(load_info, "unexpected_keys", None):
-        print(f"[WARN] Unexpected keys in checkpoint: {load_info.unexpected_keys}")
-    model.to(device)
+    if use_onnx:
+        session = ort.InferenceSession(str(model_path), providers=["CPUExecutionProvider"])
+        model: nn.Module = OnnxStereoWrapper(session)
+    else:
+        model = _load_pytorch_checkpoint(model_path, in_channels, num_classes, device)
 
     embeddings = extract_embeddings(model, dataloader, device)
     df = build_dataframe(embeddings, payload, label_ids)

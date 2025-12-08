@@ -10,6 +10,7 @@ all necessary definitions locally (no imports from image_classifier_cnn.py).
 from __future__ import annotations
 
 import datetime
+import json
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -35,6 +36,7 @@ SEED: int = 42
 DEVICE: str | None = None  # "cuda", "cpu", "mps", or None for auto
 
 MODEL_OUTPUT_DIR = Path("data/models")
+ONNX_OPSET = 17
 
 
 def load_dataset(bundle_path: Path) -> Tuple[TensorDataset, Dict[str, Any]]:
@@ -181,13 +183,70 @@ def ensure_all_samples(dataset: TensorDataset) -> TensorDataset:
     return dataset
 
 
-def save_model(model: nn.Module, metadata: Dict[str, Any], suffix: str = "") -> None:
+def _export_model_to_onnx(
+    model: nn.Module,
+    example_input: torch.Tensor,
+    save_path: Path,
+) -> None:
+    """
+    Export the trained PyTorch module to ONNX with logits and embeddings outputs.
+    """
+
+    class _OnnxWrapper(nn.Module):
+        def __init__(self, wrapped: nn.Module):
+            super().__init__()
+            self._wrapped = wrapped
+
+        def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+            logits, embedding = self._wrapped(x, return_embedding=True)
+            return logits, embedding
+
+    model.eval()
+    wrapper = _OnnxWrapper(model)
+    dummy = example_input.detach().clone().to(dtype=torch.float32)
+    torch.onnx.export(
+        wrapper,
+        dummy,
+        save_path,
+        input_names=["stereo"],
+        output_names=["logits", "embedding"],
+        dynamic_axes={
+            "stereo": {0: "batch"},
+            "logits": {0: "batch"},
+            "embedding": {0: "batch"},
+        },
+        opset_version=ONNX_OPSET,
+    )
+
+
+def save_model(
+    model: nn.Module,
+    metadata: Dict[str, Any],
+    example_input: torch.Tensor,
+    suffix: str = "",
+) -> Path:
     MODEL_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     suffix = f"-{suffix}" if suffix else ""
-    path = MODEL_OUTPUT_DIR / f"stereo_cnn{suffix}-{timestamp}.pt"
-    torch.save({"state_dict": model.state_dict(), "meta": metadata}, path)
-    print(f"Model saved to {path}")
+    base_name = f"stereo_cnn{suffix}-{timestamp}"
+    onnx_path = MODEL_OUTPUT_DIR / f"{base_name}.onnx"
+    metadata_path = MODEL_OUTPUT_DIR / f"{base_name}.json"
+
+    _export_model_to_onnx(model, example_input, onnx_path)
+
+    metadata_record = dict(metadata)
+    metadata_record.update(
+        {
+            "exported_at": timestamp,
+            "onnx_file": onnx_path.name,
+            "opset_version": ONNX_OPSET,
+        }
+    )
+    with metadata_path.open("w", encoding="utf-8") as fh:
+        json.dump(metadata_record, fh, indent=2)
+
+    print(f"Model exported to {onnx_path}")
+    return onnx_path
 
 
 def main() -> None:
@@ -256,13 +315,15 @@ def main() -> None:
     with torch.no_grad():
         preds = model(data_x.to(device))
         final_accuracy = accuracy(preds, data_y.to(device))
-    payload["training_meta"] = {
+    training_meta = {
         "final_accuracy": final_accuracy,
         "sample_count": num_samples,
         "classes": num_classes,
+        "dataset_path": str(DATASET_PATH),
     }
 
-    save_model(model.cpu(), payload)
+    example_input = data_x[:1].cpu()
+    save_model(model.cpu(), training_meta, example_input)
 
 
 if __name__ == "__main__":

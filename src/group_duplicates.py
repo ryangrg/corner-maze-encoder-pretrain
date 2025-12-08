@@ -31,17 +31,20 @@ PER_CHANNEL_TOLERANCE: float = 52.0
 MEAN_TOLERANCE: float = 1
 
 # Optional path for writing an updated dataset bundle with merged label IDs (None → overwrite input).
-OUTPUT_BUNDLE_PATH = BUNDLE_PATH.parent / f"{BUNDLE_PATH.name.removesuffix("-ds")}-duplicate-groups-{int(PER_CHANNEL_TOLERANCE)}-{int(MEAN_TOLERANCE)}-ds"
+OUTPUT_BUNDLE_PATH = BUNDLE_PATH.parent / f"{BUNDLE_PATH.name.removesuffix('-ds')}-duplicate-groups-no-partition-{int(PER_CHANNEL_TOLERANCE)}-{int(MEAN_TOLERANCE)}-ds"
 
 # Device to run comparisons on (e.g., "cpu", "cuda", "mps").
 COMPARISON_DEVICE: Union[str, torch.device] = "cpu"
 
 # Number of candidate samples compared at once when vectorizing differences.
 VECTOR_BATCH_SIZE: int = 500
-CSV_OUTPUT_PATH = OUTPUT_BUNDLE_PATH / f"{BUNDLE_PATH.name.removesuffix("-ds")}-duplicate-groups-{int(PER_CHANNEL_TOLERANCE)}-{int(MEAN_TOLERANCE)}.csv"
+CSV_OUTPUT_PATH: Union[str, Path, None] = None
 
 # Whether to allow overwriting the output bundle/report automatically.
 OVERWRITE_OUTPUTS: bool = True
+
+# Toggle whether duplicate detection should partition by cued vs non_cued configurations.
+PARTITION_BY_CUE: bool = False
 
 
 def _normalize_tolerance(value: float) -> float:
@@ -88,6 +91,53 @@ def _build_singleton_summaries(
 
     summaries.sort(key=lambda item: item["descriptions"][0] if item["descriptions"] else "")
     return summaries
+
+
+def _format_tolerance_tag(value: float | None) -> str:
+    if value is None:
+        return "auto"
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    if numeric.is_integer():
+        return str(int(numeric))
+    return str(numeric).replace(".", "_")
+
+
+def _default_csv_path(bundle_dir: Path, per_tol: float | None, mean_tol: float | None) -> Path:
+    bundle_dir = _csv_parent_for_target(bundle_dir)
+    prefix = bundle_dir.name.removesuffix("-ds") or bundle_dir.name
+    per_tag = _format_tolerance_tag(per_tol)
+    mean_tag = _format_tolerance_tag(mean_tol)
+    return bundle_dir / f"{prefix}-duplicate-groups-{per_tag}-{mean_tag}.csv"
+
+
+def _write_group_csv(
+    csv_path: Path,
+    duplicate_label_groups: Sequence[Sequence[str]],
+    singleton_groups: Sequence[Sequence[str]],
+    overwrite: bool,
+) -> Tuple[str, bool]:
+    if csv_path.exists() and not overwrite:
+        return str(csv_path), True
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
+    with csv_path.open("w", encoding="utf-8") as fh:
+        for group in duplicate_label_groups:
+            fh.write(",".join(map(str, group)) + "\n")
+        for group in singleton_groups:
+            fh.write(",".join(map(str, group)) + "\n")
+    return str(csv_path), False
+
+
+def _csv_parent_for_target(path: Path) -> Path:
+    """
+    If the path points to a directory (or directory-like), return it.
+    Otherwise, return the parent directory (supports .pt or other file outputs).
+    """
+    if path.suffix:
+        return path.parent
+    return path
 
 
 def load_dataset(
@@ -305,11 +355,16 @@ def find_partitioned_duplicate_index_groups(
     label_names: Sequence[str],
     per_tol: float,
     mean_tol: float,
+    partition: bool = True,
 ) -> List[List[int]]:
     """
-    Run duplicate detection separately for cued vs non-cued trials and
-    return the combined duplicate index groups in terms of the original tensor.
+    Run duplicate detection with optional partitioning for cued vs non-cued trials.
+    When `partition` is True (default), groups never mix cue categories.
     """
+    if not partition:
+        _, groups = group_duplicates(stack, label_names, per_tol, mean_tol)
+        return groups
+
     partitions = _partition_indices_by_cue(label_names)
     all_groups: List[List[int]] = []
 
@@ -495,7 +550,9 @@ def run_duplicate_search(
     stack, label_names, label_ids, labels2label_names = load_dataset(
         bundle, device=COMPARISON_DEVICE
     )
-    index_groups = find_partitioned_duplicate_index_groups(stack, label_names, per_tol, mean_tol)
+    index_groups = find_partitioned_duplicate_index_groups(
+        stack, label_names, per_tol, mean_tol, partition=PARTITION_BY_CUE
+    )
     return summarize_duplicate_groups(index_groups, label_ids, label_names, labels2label_names)
 
 
@@ -506,6 +563,7 @@ def process_duplicates(
     output_bundle: Union[str, Path, None] = OUTPUT_BUNDLE_PATH,
     csv_path: Union[str, Path, None] = CSV_OUTPUT_PATH,
     overwrite: bool = OVERWRITE_OUTPUTS,
+    partition_by_cue: bool = PARTITION_BY_CUE,
 ) -> Dict[str, Any]:
     """
     High-level helper: detect duplicates, optionally save a report, and update the dataset bundle.
@@ -513,11 +571,21 @@ def process_duplicates(
     """
     if bundle_path is None:
         raise ValueError("Bundle path is required. Set BUNDLE_PATH or pass bundle_path=...")
+    bundle_path = Path(bundle_path).expanduser().resolve()
+
+    if output_bundle in (None, "None", "none"):
+        target_bundle_dir = bundle_path
+        output_bundle_arg: Union[str, Path, None] = None
+    else:
+        target_bundle_dir = Path(output_bundle).expanduser().resolve()
+        output_bundle_arg = target_bundle_dir
 
     stack, label_names, label_ids, labels2label_names = load_dataset(
         bundle_path, device=COMPARISON_DEVICE
     )
-    index_groups = find_partitioned_duplicate_index_groups(stack, label_names, per_tol, mean_tol)
+    index_groups = find_partitioned_duplicate_index_groups(
+        stack, label_names, per_tol, mean_tol, partition=partition_by_cue
+    )
     duplicate_label_groups = [
         [label_names[idx] for idx in group]
         for group in index_groups
@@ -533,30 +601,24 @@ def process_duplicates(
     )
     summaries = summarize_duplicate_groups(index_groups, label_ids, label_names, labels2label_names)
 
-    csv_arg = csv_path
-    if csv_arg not in (None, "None", "none"):
-        csv_path = Path(csv_arg).expanduser().resolve()
-        if csv_path.exists() and not overwrite:
-            csv_saved = str(csv_path)
-            csv_skipped = True
-        else:
-            csv_path.parent.mkdir(parents=True, exist_ok=True)
-            with csv_path.open("w", encoding="utf-8") as fh:
-                for group in duplicate_label_groups:
-                    fh.write(",".join(map(str, group)) + "\n")
-                for group in singleton_groups:
-                    fh.write(",".join(map(str, group)) + "\n")
-            csv_saved = str(csv_path)
-            csv_skipped = False
-    else:
-        csv_saved = None
-        csv_skipped = False
-
     update_result = apply_duplicate_label_updates(
         bundle_path,
         index_groups,
         label_names_fallback=label_names,
-        output_path=output_bundle,
+        output_path=output_bundle_arg,
+        overwrite=overwrite,
+    )
+
+    csv_arg = csv_path
+    if csv_arg in (None, "None", "none"):
+        csv_target = _default_csv_path(target_bundle_dir, per_tol, mean_tol)
+    else:
+        csv_target = Path(csv_arg).expanduser().resolve()
+
+    csv_saved, csv_skipped = _write_group_csv(
+        csv_target,
+        duplicate_label_groups,
+        singleton_groups,
         overwrite=overwrite,
     )
 
