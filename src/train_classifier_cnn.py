@@ -9,8 +9,6 @@ all necessary definitions locally (no imports from image_classifier_cnn.py).
 
 from __future__ import annotations
 
-import datetime
-import json
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -18,14 +16,14 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 from torch.utils.data import DataLoader, Dataset, TensorDataset
+import dataset_io
 
 # =======================
 # === USER SETTINGS ====
 # =======================
 
-DATASET_PATH: Path = Path(
-    "/Users/ryangrgurich/VS Code Local/corner-maze-encoder-pretrain/data/pt-files/corner-maze-render-base-images-dataset-median-groups.pt"
-)
+ROOT_DIR = Path(__file__).resolve().parents[1]
+DATASET_PATH = ROOT_DIR / "data/datasets/corner-maze-render-base-images-consolidated-dull-ds"
 MAX_EPOCHS: int = 1000000
 BATCH_SIZE: int = 0  # 0 or negative → full batch (memorization)
 LEARNING_RATE: float = 1e-4
@@ -34,9 +32,8 @@ TARGET_ACCURACY: float = 1.0
 PRINT_EVERY: int = 1
 SEED: int = 42
 DEVICE: str | None = None  # "cuda", "cpu", "mps", or None for auto
-
-MODEL_OUTPUT_DIR = Path("data/models")
-ONNX_OPSET = 17
+MODEL_SUFFIX: str = "consolidated-dull"
+MODEL_OUTPUT_DIR = ROOT_DIR / "data/models/"
 
 
 def load_dataset(bundle_path: Path) -> Tuple[TensorDataset, Dict[str, Any]]:
@@ -44,7 +41,10 @@ def load_dataset(bundle_path: Path) -> Tuple[TensorDataset, Dict[str, Any]]:
     if not bundle_path.exists():
         raise FileNotFoundError(f"Dataset bundle not found: {bundle_path}")
 
-    payload = torch.load(bundle_path, map_location="cpu")
+    if bundle_path.is_dir():
+        payload = dataset_io.load_bundle(bundle_path)
+    else:
+        payload = torch.load(bundle_path, map_location="cpu")
     if not isinstance(payload, dict):
         raise TypeError(f"Expected dict payload, found {type(payload)!r}")
 
@@ -95,14 +95,20 @@ class StereoConvNet(nn.Module):
         self.fc1 = nn.Linear(64, 64)
         self.fc2 = nn.Linear(64, num_classes)
 
-    def forward(self, x, return_embedding: bool = False):
+    def forward(self, x):
         x = self.features(x)
         x = x.flatten(1)
         h = F.relu(self.fc1(x))
         logits = self.fc2(h)
-        if return_embedding:
-            return logits, h
         return logits
+
+    @torch.jit.export
+    def forward_with_embedding(self, x):
+        x = self.features(x)
+        x = x.flatten(1)
+        h = F.relu(self.fc1(x))
+        logits = self.fc2(h)
+        return logits, h
 
 
 def accuracy(pred: torch.Tensor, target: torch.Tensor) -> float:
@@ -177,76 +183,30 @@ def train(
             f"Reached max epochs ({epochs}) with final accuracy {epoch_acc:.4f}. "
             "Increase epochs or adjust hyperparameters if needed."
         )
-
-
 def ensure_all_samples(dataset: TensorDataset) -> TensorDataset:
     return dataset
 
 
-def _export_model_to_onnx(
-    model: nn.Module,
-    example_input: torch.Tensor,
-    save_path: Path,
-) -> None:
+def save_torchscript_model(model: nn.Module, suffix: str = "") -> Path:
     """
-    Export the trained PyTorch module to ONNX with logits and embeddings outputs.
+    Script the trained classifier (retaining logits/embedding behavior) and save it.
     """
+    MODEL_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    suffix = f"-{suffix}" if suffix else ""
+    ts_path = MODEL_OUTPUT_DIR / f"stereo_cnn{suffix}.ts"
 
-    class _OnnxWrapper(nn.Module):
+    class _ExportWrapper(nn.Module):
         def __init__(self, wrapped: nn.Module):
             super().__init__()
-            self._wrapped = wrapped
+            self.core = wrapped
 
-        def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-            logits, embedding = self._wrapped(x, return_embedding=True)
-            return logits, embedding
+        def forward(self, x: torch.Tensor):
+            return self.core.forward_with_embedding(x)
 
-    model.eval()
-    wrapper = _OnnxWrapper(model)
-    dummy = example_input.detach().clone().to(dtype=torch.float32)
-    torch.onnx.export(
-        wrapper,
-        dummy,
-        save_path,
-        input_names=["stereo"],
-        output_names=["logits", "embedding"],
-        dynamic_axes={
-            "stereo": {0: "batch"},
-            "logits": {0: "batch"},
-            "embedding": {0: "batch"},
-        },
-        opset_version=ONNX_OPSET,
-    )
-
-
-def save_model(
-    model: nn.Module,
-    metadata: Dict[str, Any],
-    example_input: torch.Tensor,
-    suffix: str = "",
-) -> Path:
-    MODEL_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    suffix = f"-{suffix}" if suffix else ""
-    base_name = f"stereo_cnn{suffix}-{timestamp}"
-    onnx_path = MODEL_OUTPUT_DIR / f"{base_name}.onnx"
-    metadata_path = MODEL_OUTPUT_DIR / f"{base_name}.json"
-
-    _export_model_to_onnx(model, example_input, onnx_path)
-
-    metadata_record = dict(metadata)
-    metadata_record.update(
-        {
-            "exported_at": timestamp,
-            "onnx_file": onnx_path.name,
-            "opset_version": ONNX_OPSET,
-        }
-    )
-    with metadata_path.open("w", encoding="utf-8") as fh:
-        json.dump(metadata_record, fh, indent=2)
-
-    print(f"Model exported to {onnx_path}")
-    return onnx_path
+    scripted = torch.jit.script(_ExportWrapper(model.eval()))
+    scripted.save(str(ts_path))
+    print(f"Model exported to {ts_path}")
+    return ts_path
 
 
 def main() -> None:
@@ -315,15 +275,8 @@ def main() -> None:
     with torch.no_grad():
         preds = model(data_x.to(device))
         final_accuracy = accuracy(preds, data_y.to(device))
-    training_meta = {
-        "final_accuracy": final_accuracy,
-        "sample_count": num_samples,
-        "classes": num_classes,
-        "dataset_path": str(DATASET_PATH),
-    }
-
-    example_input = data_x[:1].cpu()
-    save_model(model.cpu(), training_meta, example_input)
+    _ = final_accuracy  # kept for potential logging; TorchScript export does not need metadata.
+    save_torchscript_model(model.cpu(), suffix=MODEL_SUFFIX)
 
 
 if __name__ == "__main__":
