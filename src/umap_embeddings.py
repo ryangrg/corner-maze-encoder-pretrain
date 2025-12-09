@@ -13,6 +13,7 @@ from typing import Iterable
 from itertools import cycle
 
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D  # noqa: F401  # ensures 3D proj registered
 import numpy as np
 import pandas as pd
 
@@ -22,7 +23,7 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 EMBEDDINGS_PARQUET: Path = ROOT / "data/tables/corner-maze-render-base-images-consolidated-dull-ds-embeddings-20251208165058.parquet"
-UMAP_COMPONENTS: int = 2
+UMAP_COMPONENTS: int = 3
 UMAP_NEIGHBORS: int = 15
 UMAP_MIN_DIST: float = 0.1
 UMAP_METRIC: str = "euclidean"
@@ -35,24 +36,21 @@ PATH_LABEL_GROUPS: list = [
     # Example entries:
     # ["trl_e_n_xx_1_1_3", "trl_e_n_xx_1_11_2", "trl_n_n_xx_1_11_2"],
     # "iti_w_x_nw_11_1_0, iti_w_x_sw_1_1_3, exp_x_x_xx_11_11_1",
-    ["exp_x_x_xx_2_2_0", "exp_x_x_xx_3_2_0", "exp_x_x_xx_4_2_0", "exp_x_x_xx_5_2_0",
-     "exp_x_x_xx_6_2_0", "exp_x_x_xx_7_2_0", "exp_x_x_xx_8_2_0", "exp_x_x_xx_9_2_0",
-     "exp_x_x_xx_10_2_0"],
+    # ["exp_x_x_xx_2_2_0", "exp_x_x_xx_3_2_0", "exp_x_x_xx_4_2_0", "exp_x_x_xx_5_2_0",
+    #  "exp_x_x_xx_6_2_0", "exp_x_x_xx_7_2_0", "exp_x_x_xx_8_2_0", "exp_x_x_xx_9_2_0",
+    #  "exp_x_x_xx_10_2_0"],
      ["trl_n_n_xx_2_2_0", "trl_n_n_xx_3_2_0", "trl_n_n_xx_4_2_0", "trl_n_n_xx_5_2_0",
      "trl_n_n_xx_6_2_0", "trl_n_n_xx_7_2_0", "trl_n_n_xx_8_2_0", "trl_n_n_xx_9_2_0",
      "trl_n_n_xx_10_2_0"],
-     ["trl_s_n_xx_2_10_0", "trl_s_n_xx_3_10_0", "trl_s_n_xx_4_10_0", "trl_s_n_xx_5_10_0",
-     "trl_s_n_xx_6_10_0", "trl_s_n_xx_7_10_0", "trl_s_n_xx_8_10_0", "trl_s_n_xx_9_10_0",
-     "trl_s_n_xx_10_10_0"],
-     ["trl_s_n_xx_6_2_0", "trl_s_n_xx_6_3_0", "trl_s_n_xx_6_4_0", "trl_s_n_xx_6_5_0",
-     "trl_s_n_xx_6_6_0", "trl_s_n_xx_6_7_0", "trl_s_n_xx_6_8_0", "trl_s_n_xx_6_9_0",
-     "trl_s_n_xx_6_10_0"],
-     ["trl_s_n_xx_6_2_0", "trl_s_n_xx_6_3_0", "trl_s_n_xx_6_4_0", "trl_s_n_xx_6_5_0",
-     "trl_s_n_xx_6_6_0", "trl_s_n_xx_6_7_0", "trl_s_n_xx_6_8_0", "trl_s_n_xx_6_9_0",
-     "trl_s_n_xx_6_10_0"],
-     ["trl_s_n_xx_6_2_0", "trl_s_n_xx_6_3_0", "trl_s_n_xx_6_4_0", "trl_s_n_xx_6_5_0",
-     "trl_s_n_xx_6_6_0", "trl_s_n_xx_6_7_0", "trl_s_n_xx_6_8_0", "trl_s_n_xx_6_9_0",
-     "trl_s_n_xx_6_10_0"]
+    #  ["trl_s_n_xx_2_10_0", "trl_s_n_xx_3_10_0", "trl_s_n_xx_4_10_0", "trl_s_n_xx_5_10_0",
+    #  "trl_s_n_xx_6_10_0", "trl_s_n_xx_7_10_0", "trl_s_n_xx_8_10_0", "trl_s_n_xx_9_10_0",
+    #  "trl_s_n_xx_10_10_0"],
+    #  ["trl_s_n_xx_6_2_0", "trl_s_n_xx_6_3_0", "trl_s_n_xx_6_4_0", "trl_s_n_xx_6_5_0",
+    #  "trl_s_n_xx_6_6_0", "trl_s_n_xx_6_7_0", "trl_s_n_xx_6_8_0", "trl_s_n_xx_6_9_0",
+    #  "trl_s_n_xx_6_10_0"],
+     ["trl_s_n_xx_2_6_0", "trl_s_n_xx_3_6_0", "trl_s_n_xx_4_6_0", "trl_s_n_xx_5_6_0",
+     "trl_s_n_xx_6_6_0"]
+     
 ]
 
 
@@ -102,10 +100,12 @@ def main() -> None:
             if entry:
                 yield entry
 
-    label_to_point: dict[str, tuple[float, float]] = {}
-    if "umap_0" in df.columns and "umap_1" in df.columns:
+    plot_dims = min(UMAP_COMPONENTS, 3)
+    plot_cols = [f"umap_{dim}" for dim in range(plot_dims)]
+    label_to_point: dict[str, tuple[float, ...]] = {}
+    if all(col in df.columns for col in plot_cols):
         for _, row in df.iterrows():
-            point = (float(row["umap_0"]), float(row["umap_1"]))
+            point = tuple(float(row[col]) for col in plot_cols)
             primary_label = str(row.get("label_name", ""))
             if primary_label:
                 label_to_point.setdefault(primary_label, point)
@@ -118,15 +118,24 @@ def main() -> None:
     df.to_parquet(output_path, index=False)
     print(f"Saved UMAP data to {output_path}")
 
-    if UMAP_COMPONENTS >= 2:
+    if plot_dims >= 2:
         plot_path = OUTPUT_PLOT.expanduser().resolve()
         plot_path.parent.mkdir(parents=True, exist_ok=True)
 
-        fig, ax = plt.subplots(figsize=(8, 6))
-        scatter = ax.scatter(df["umap_0"], df["umap_1"], s=5, alpha=0.7)
+        if plot_dims == 2:
+            fig, ax = plt.subplots(figsize=(8, 6))
+            ax.scatter(df["umap_0"], df["umap_1"], s=5, alpha=0.7)
+            ax.set_xlabel("UMAP 0")
+            ax.set_ylabel("UMAP 1")
+        else:
+            fig = plt.figure(figsize=(8, 6))
+            ax = fig.add_subplot(111, projection="3d")
+            ax.scatter(df["umap_0"], df["umap_1"], df["umap_2"], s=5, alpha=0.7)
+            ax.set_xlabel("UMAP 0")
+            ax.set_ylabel("UMAP 1")
+            ax.set_zlabel("UMAP 2")
+
         ax.set_title("UMAP Projection")
-        ax.set_xlabel("UMAP 0")
-        ax.set_ylabel("UMAP 1")
         fig.tight_layout()
         fig.savefig(plot_path, dpi=200)
         print(f"Saved UMAP plot to {plot_path}")
@@ -153,9 +162,13 @@ def main() -> None:
                 if missing:
                     print(f"[WARN] Path labels not found: {', '.join(missing)}")
                 if len(points) >= 2:
-                    xs, ys = zip(*points)
                     color = next(colors)
-                    ax.plot(xs, ys, marker="o", linestyle="-", linewidth=2, color=color)
+                    if plot_dims == 2:
+                        xs, ys = zip(*((p[0], p[1]) for p in points))
+                        ax.plot(xs, ys, marker="o", linestyle="-", linewidth=2, color=color)
+                    else:
+                        xs, ys, zs = zip(*((p[0], p[1], p[2]) for p in points))
+                        ax.plot(xs, ys, zs, marker="o", linestyle="-", linewidth=2, color=color)
 
         plt.show()
 
