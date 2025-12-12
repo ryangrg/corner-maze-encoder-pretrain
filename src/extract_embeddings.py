@@ -34,8 +34,8 @@ import dataset_io
 # =======================
 
 ROOT: Path = Path(__file__).resolve().parents[1]
-DATASET_PATH: Path = ROOT / "data/datasets/corner-maze-render-base-images-consolidated-dull-ds"
-MODEL_PATH: Path = ROOT / "data/models/stereo_cnn-consolidated-dull.ts"
+DATASET_PATH: Path = ROOT / "data/datasets/corner-maze-render-base-images-consolidated-acute-ds"
+MODEL_PATH: Path = ROOT / "data/models/stereo_cnn-consolidated-acute-32.ts"
 OUTPUT_DIR: Path = ROOT / "data/tables"
 BATCH_SIZE: int = 128
 DEVICE_OVERRIDE: str | None = None  # "cuda", "cpu", "mps", or None for auto

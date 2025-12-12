@@ -23,7 +23,7 @@ import dataset_io
 # =======================
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-DATASET_PATH = ROOT_DIR / "data/datasets/corner-maze-render-base-images-consolidated-dull-ds"
+DATASET_PATH = ROOT_DIR / "data/datasets/corner-maze-render-base-images-consolidated-acute-ds"
 MAX_EPOCHS: int = 1000000
 BATCH_SIZE: int = 0  # 0 or negative → full batch (memorization)
 LEARNING_RATE: float = 1e-4
@@ -32,7 +32,7 @@ TARGET_ACCURACY: float = 1.0
 PRINT_EVERY: int = 1
 SEED: int = 42
 DEVICE: str | None = None  # "cuda", "cpu", "mps", or None for auto
-MODEL_SUFFIX: str = "consolidated-dull"
+MODEL_SUFFIX: str = "consolidated-acute-32"
 MODEL_OUTPUT_DIR = ROOT_DIR / "data/models/"
 
 
@@ -92,8 +92,8 @@ class StereoConvNet(nn.Module):
             nn.AdaptiveAvgPool2d(1),
             nn.ReLU(inplace=True),
         )
-        self.fc1 = nn.Linear(64, 64)
-        self.fc2 = nn.Linear(64, num_classes)
+        self.fc1 = nn.Linear(64, 32)
+        self.fc2 = nn.Linear(32, num_classes)
 
     def forward(self, x):
         x = self.features(x)

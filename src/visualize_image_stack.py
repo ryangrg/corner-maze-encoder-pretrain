@@ -32,7 +32,7 @@ from matplotlib.widgets import Button, TextBox
 import dataset_io
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_DATASET_DIR = ROOT_DIR / "data/datasets/corner-maze-render-base-images-duplicate-groups-no-partition-52-1-ds"
+DEFAULT_DATASET_DIR = ROOT_DIR / "data/datasets/corner-maze-render-base-images-duplicate-groups-partitioned-52-1-ds"
 DISPLAY_DEVICE: str = "cpu"
 
 
@@ -264,6 +264,10 @@ def show_duplicate_viewer(
         print(f"Skipped {skipped} CSV rows that no longer exist in the dataset.")
 
     label_to_index = {label: idx for idx, label in enumerate(label_names)}
+    label_to_group_member: Dict[str, Tuple[int, int]] = {}
+    for g_idx, group in enumerate(groups):
+        for m_idx, label in enumerate(group):
+            label_to_group_member[label] = (g_idx, m_idx)
     group_idx = 0
     member_idx = 0
     show_gray = False
@@ -277,7 +281,12 @@ def show_duplicate_viewer(
         hspace=0.035,
     )
 
-    info_grid = outer_grid[0, 0].subgridspec(1, 2, width_ratios=[0.7, 0.3], wspace=0.02)
+    info_grid = outer_grid[0, 0].subgridspec(
+        1,
+        4,
+        width_ratios=[0.58, 0.16, 0.16, 0.1],
+        wspace=0.05,
+    )
     info_ax = fig.add_subplot(info_grid[0, 0])
     info_ax.axis("off")
     info_text = info_ax.text(
@@ -290,7 +299,9 @@ def show_duplicate_viewer(
         color="#e0e0e0",
     )
 
-    view_toggle_ax = fig.add_subplot(info_grid[0, 1])
+    group_jump_ax = fig.add_subplot(info_grid[0, 1])
+    search_ax = fig.add_subplot(info_grid[0, 2])
+    view_toggle_ax = fig.add_subplot(info_grid[0, 3])
     view_toggle_ax.set_xticks([])
     view_toggle_ax.set_yticks([])
     view_toggle_ax.set_facecolor("#f0f0f0")
@@ -299,26 +310,23 @@ def show_duplicate_viewer(
     view_toggle_btn.label.set_fontsize(9)
     view_toggle_btn.label.set_color("#000000")
 
-    button_grid = outer_grid[1, 0].subgridspec(
-        1,
-        5,
-        width_ratios=[1.0, 1.0, 1.0, 1.0, 1.4],
-        wspace=0.02,
-    )
+    button_grid = outer_grid[1, 0].subgridspec(1, 4, width_ratios=[1.0, 1.0, 1.0, 1.0], wspace=0.02)
     group_prev_ax = fig.add_subplot(button_grid[0, 0])
     group_next_ax = fig.add_subplot(button_grid[0, 1])
     item_prev_ax = fig.add_subplot(button_grid[0, 2])
     item_next_ax = fig.add_subplot(button_grid[0, 3])
-    group_jump_ax = fig.add_subplot(button_grid[0, 4])
     for ax in (group_prev_ax, group_next_ax, item_prev_ax, item_next_ax):
         ax.set_xticks([])
         ax.set_yticks([])
         ax.set_facecolor("#f0f0f0")
         _resize_axis(ax, width_px=80, height_px=30)
-    group_jump_ax.set_xticks([])
-    group_jump_ax.set_yticks([])
-    group_jump_ax.set_facecolor("#f0f0f0")
-    _resize_axis(group_jump_ax, width_px=120, height_px=30)
+    for ax in (search_ax, group_jump_ax):
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_facecolor("#f0f0f0")
+        ax.set_frame_on(True)
+    _resize_axis(search_ax, width_px=120, height_px=24)
+    _resize_axis(group_jump_ax, width_px=120, height_px=26)
 
     group_prev_btn = Button(group_prev_ax, "Prev Group")
     group_next_btn = Button(group_next_ax, "Next Group")
@@ -327,6 +335,13 @@ def show_duplicate_viewer(
     for btn in (group_prev_btn, group_next_btn, item_prev_btn, item_next_btn):
         btn.label.set_fontsize(9)
         btn.label.set_color("#000000")
+
+    label_search_box = TextBox(search_ax, "Find Label", initial="")
+    label_search_box.label.set_fontsize(8)
+    label_search_box.label.set_color("#ffffff")
+    label_search_box.text_disp.set_fontsize(9)
+    label_search_box.text_disp.set_color("#000000")
+    label_search_box.cursor.set_color("#303030")
 
     group_jump_box = TextBox(group_jump_ax, "Group #", initial="1")
     group_jump_box.label.set_fontsize(9)
@@ -418,14 +433,21 @@ def show_duplicate_viewer(
         _update_jump_box()
         fig.canvas.draw_idle()
 
-    def _set_group(index: int) -> None:
+    def _jump_to(target_group: int, target_member: int = 0) -> None:
         nonlocal group_idx, member_idx
         total = len(groups)
         if total == 0:
             return
-        group_idx = max(0, min(total - 1, index))
-        member_idx = 0
+        group_idx = max(0, min(total - 1, target_group))
+        group = groups[group_idx]
+        if not group:
+            member_idx = 0
+        else:
+            member_idx = max(0, min(len(group) - 1, target_member))
         _update_display()
+
+    def _set_group(index: int) -> None:
+        _jump_to(index, 0)
 
     def _shift_group(delta: int) -> None:
         total = len(groups)
@@ -445,11 +467,22 @@ def show_duplicate_viewer(
         _render(groups[group_idx][member_idx])
         fig.canvas.draw_idle()
 
+    def _handle_label_search(text: str) -> None:
+        query = text.strip()
+        if not query:
+            return
+        target = label_to_group_member.get(query)
+        if target is None:
+            print(f"[WARN] Label not found in any group: {query!r}")
+            return
+        _jump_to(target[0], target[1])
+
     group_prev_btn.on_clicked(lambda _: _shift_group(-1))
     group_next_btn.on_clicked(lambda _: _shift_group(1))
     item_prev_btn.on_clicked(lambda _: _shift_member(-1))
     item_next_btn.on_clicked(lambda _: _shift_member(1))
     view_toggle_btn.on_clicked(_toggle_view)
+    label_search_box.on_submit(_handle_label_search)
 
     _update_display()
     plt.show()

@@ -31,7 +31,7 @@ PER_CHANNEL_TOLERANCE: float = 52.0
 MEAN_TOLERANCE: float = 1
 
 # Optional path for writing an updated dataset bundle with merged label IDs (None → overwrite input).
-OUTPUT_BUNDLE_PATH = BUNDLE_PATH.parent / f"{BUNDLE_PATH.name.removesuffix('-ds')}-duplicate-groups-no-partition-{int(PER_CHANNEL_TOLERANCE)}-{int(MEAN_TOLERANCE)}-ds"
+OUTPUT_BUNDLE_PATH = BUNDLE_PATH.parent / f"{BUNDLE_PATH.name.removesuffix('-ds')}-duplicate-groups-partitioned-{int(PER_CHANNEL_TOLERANCE)}-{int(MEAN_TOLERANCE)}-ds"
 
 # Device to run comparisons on (e.g., "cpu", "cuda", "mps").
 COMPARISON_DEVICE: Union[str, torch.device] = "cpu"
@@ -44,7 +44,7 @@ CSV_OUTPUT_PATH: Union[str, Path, None] = None
 OVERWRITE_OUTPUTS: bool = True
 
 # Toggle whether duplicate detection should partition by cued vs non_cued configurations.
-PARTITION_BY_CUE: bool = False
+PARTITION_BY_CUE: bool = True
 
 
 def _normalize_tolerance(value: float) -> float:
@@ -115,19 +115,80 @@ def _default_csv_path(bundle_dir: Path, per_tol: float | None, mean_tol: float |
 
 def _write_group_csv(
     csv_path: Path,
-    duplicate_label_groups: Sequence[Sequence[str]],
-    singleton_groups: Sequence[Sequence[str]],
+    ordered_groups: Sequence[Sequence[str]],
     overwrite: bool,
 ) -> Tuple[str, bool]:
     if csv_path.exists() and not overwrite:
         return str(csv_path), True
     csv_path.parent.mkdir(parents=True, exist_ok=True)
     with csv_path.open("w", encoding="utf-8") as fh:
-        for group in duplicate_label_groups:
-            fh.write(",".join(map(str, group)) + "\n")
-        for group in singleton_groups:
+        for group in ordered_groups:
             fh.write(",".join(map(str, group)) + "\n")
     return str(csv_path), False
+
+
+def _catalog_label_order(
+    labels2label_names: Dict[int, List[str]],
+    label_ids: Sequence[int],
+) -> Dict[int, int]:
+    order: Dict[int, int] = {}
+    for position, label_id in enumerate(labels2label_names.keys()):
+        try:
+            order[int(label_id)] = position
+        except (TypeError, ValueError):
+            continue
+    next_position = len(order)
+    for raw_id in label_ids:
+        try:
+            label_id = int(raw_id)
+        except (TypeError, ValueError):
+            continue
+        if label_id not in order:
+            order[label_id] = next_position
+            next_position += 1
+    return order
+
+
+def _ordered_groups_by_catalog(
+    duplicate_label_groups: Sequence[Sequence[str]],
+    duplicate_index_groups: Sequence[Sequence[int]],
+    singleton_groups: Sequence[Sequence[str]],
+    singleton_indices: Sequence[int],
+    label_ids: Sequence[int],
+    labels2label_names: Dict[int, List[str]],
+) -> List[Sequence[str]]:
+    """
+    Combine duplicate and singleton groups into a single ordered list that follows
+    the label ordering established by labels2label_names.
+    """
+    order_lookup = _catalog_label_order(labels2label_names, label_ids)
+    fallback_order = len(order_lookup)
+
+    def _canonical_id(indices: Sequence[int]) -> int | None:
+        if not indices:
+            return None
+        resolved = [label_ids[idx] for idx in indices]
+        try:
+            return int(min(resolved))
+        except (TypeError, ValueError):
+            return None
+
+    entries: List[Tuple[int, int, Sequence[str]]] = []
+    for group_labels, index_group in zip(duplicate_label_groups, duplicate_index_groups):
+        canonical = _canonical_id(index_group)
+        order_value = order_lookup.get(int(canonical), fallback_order) if canonical is not None else fallback_order
+        entries.append((order_value, 0, group_labels))
+
+    for idx, group_labels in zip(singleton_indices, singleton_groups):
+        try:
+            label_id = int(label_ids[idx])
+        except (TypeError, ValueError):
+            label_id = None
+        order_value = order_lookup.get(label_id, fallback_order)
+        entries.append((order_value, 1, group_labels))
+
+    entries.sort(key=lambda item: (item[0], item[1], item[2][0] if item[2] else ""))
+    return [item[2] for item in entries]
 
 
 def _csv_parent_for_target(path: Path) -> Path:
@@ -615,10 +676,18 @@ def process_duplicates(
     else:
         csv_target = Path(csv_arg).expanduser().resolve()
 
+    ordered_csv_groups = _ordered_groups_by_catalog(
+        duplicate_label_groups,
+        index_groups,
+        singleton_groups,
+        singleton_indices,
+        label_ids,
+        labels2label_names,
+    )
+
     csv_saved, csv_skipped = _write_group_csv(
         csv_target,
-        duplicate_label_groups,
-        singleton_groups,
+        ordered_csv_groups,
         overwrite=overwrite,
     )
 

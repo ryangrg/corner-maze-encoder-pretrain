@@ -18,8 +18,8 @@ import torch
 import dataset_io
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_DATASET_DIR = ROOT_DIR / "data/datasets/corner-maze-render-base-images-regrouped-dull-ds"
-DEFAULT_OUTPUT_DIR = ROOT_DIR / "data/datasets/corner-maze-render-base-images-consolidated-dull-ds"
+DEFAULT_DATASET_DIR = ROOT_DIR / "data/datasets/corner-maze-render-base-images-regrouped-acute-ds"
+DEFAULT_OUTPUT_DIR = ROOT_DIR / "data/datasets/corner-maze-render-base-images-consolidated-acute-ds"
 
 
 def _load_groups(csv_path: Path) -> List[List[str]]:

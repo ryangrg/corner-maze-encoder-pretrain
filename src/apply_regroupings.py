@@ -20,8 +20,8 @@ import dataset_io
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_DATASET_DIR = ROOT_DIR / "data/datasets/corner-maze-render-base-images-ds"
-DEFAULT_REGROUP_CSV = ROOT_DIR / "data/csv/corner-maze-render-base-images-duplicate-groups-52-1-regrouped-dull.csv"
-DEFAULT_OUTPUT_DIR = DEFAULT_DATASET_DIR.parent / f"corner-maze-render-base-images-regrouped-dull-ds"
+DEFAULT_REGROUP_CSV = ROOT_DIR / "data/csv/corner-maze-render-base-images-duplicate-groups-partitioned-52-1-duplicate-groups-52-1-manual-check-acute.csv"
+DEFAULT_OUTPUT_DIR = DEFAULT_DATASET_DIR.parent / f"corner-maze-render-base-images-regrouped-acute-ds"
 
 
 def _load_regroup_csv(csv_path: Path) -> List[List[str]]:
