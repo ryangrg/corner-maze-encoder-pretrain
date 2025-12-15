@@ -76,7 +76,7 @@ import dataset_io
 ROOT = Path(__file__).resolve().parents[1]
 IMAGE_DIR = ROOT / "data/images/corner-maze-render-base-images"
 BLUR_RADIUS = 1.5
-OUTPUT_DATASET_DIR = ROOT / "data/datasets/corner-maze-render-base-images-ds"
+OUTPUT_DATASET_DIR = ROOT / "data/datasets/base-images-ds"
 
 # =======================
 # === SCRIPT LOGIC ======

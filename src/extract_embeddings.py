@@ -34,9 +34,10 @@ import dataset_io
 # =======================
 
 ROOT: Path = Path(__file__).resolve().parents[1]
-DATASET_PATH: Path = ROOT / "data/datasets/corner-maze-render-base-images-consolidated-acute-ds"
-MODEL_PATH: Path = ROOT / "data/models/stereo_cnn-consolidated-acute-32.ts"
+DATASET_PATH: Path = ROOT / "data/datasets/base-images-consolidated-partitioned-52-1-acute-ds"
+MODEL_PATH: Path = ROOT / "data/models/stereo-cnn-consolidated-acute-60-attentionNoRelu.ts"
 OUTPUT_DIR: Path = ROOT / "data/tables"
+OUTPUT_PATH: Path = OUTPUT_DIR / f"{MODEL_PATH.stem}-embeddings.parquet"
 BATCH_SIZE: int = 128
 DEVICE_OVERRIDE: str | None = None  # "cuda", "cpu", "mps", or None for auto
 
@@ -208,13 +209,8 @@ def main() -> None:
     embeddings = extract_embeddings(model, dataloader, device)
     df = build_dataframe(embeddings, payload, label_ids)
 
-    timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-    output_dir = OUTPUT_DIR.expanduser().resolve()
-    output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / f"{DATASET_PATH.stem}-embeddings-{timestamp}.parquet"
-
-    df.to_parquet(output_path, index=False)
-    print(f"Saved embeddings for {len(df)} samples to {output_path}")
+    df.to_parquet(OUTPUT_PATH, index=False)
+    print(f"Saved embeddings for {len(df)} samples to {OUTPUT_PATH}")
 
 
 if __name__ == "__main__":

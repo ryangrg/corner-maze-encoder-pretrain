@@ -22,38 +22,20 @@ import pandas as pd
 # =======================
 
 ROOT = Path(__file__).resolve().parents[1]
-EMBEDDINGS_PARQUET: Path = ROOT / "data/tables/corner-maze-render-base-images-consolidated-acute-ds-embeddings-32.parquet"
+EMBEDDINGS_PARQUET: Path = ROOT / "data/tables/stereo-cnn-consolidated-acute-60-attention-embeddings.parquet"
 UMAP_COMPONENTS: int = 3
 UMAP_NEIGHBORS: int = 15
 UMAP_MIN_DIST: float = 0.1
 UMAP_METRIC: str = "euclidean"
 UMAP_SEED: int = 42
-OUTPUT_PARQUET: Path = ROOT / "data/tables/corner-maze-render-base-images-consolidated-acute-ds-embeddings-32-umap.parquet"
-OUTPUT_PLOT: Path = ROOT / "data/plots/corner-maze-render-base-images-consolidated-acute-ds-embeddings-32-umap.png"
+OUTPUT_PARQUET: Path = EMBEDDINGS_PARQUET.with_stem(EMBEDDINGS_PARQUET.stem + "-umap")
 HOVER_LABEL_COLUMN: str = "label_name"
 POSES_COLUMN: str = "poses"
+NORMALIZE_EMBEDDINGS: bool = False
 PATH_LABEL_GROUPS: list = [
-    # Example entries:
-    # ["trl_e_n_xx_1_1_3", "trl_e_n_xx_1_11_2", "trl_n_n_xx_1_11_2"],
-    # ["trl_e_n_xx_6_10_3", "trl_e_n_xx_6_9_3", "trl_e_n_xx_6_8_3", "trl_e_n_xx_6_7_3", "trl_e_n_xx_6_6_3",
-    #  "trl_e_n_xx_6_6_0", "trl_e_n_xx_7_6_0", "trl_e_n_xx_8_6_0", "trl_e_n_xx_9_6_0", "trl_e_n_xx_10_6_0",
-    #  "trl_e_n_xx_10_6_1", "trl_e_n_xx_10_7_1", "trl_e_n_xx_10_8_1", "trl_e_n_xx_10_9_1", "trl_e_n_xx_10_10_1",
-    #  "trl_e_n_xx_11_11_1"],
-    #  ["trl_e_n_xx_6_10_3", "trl_e_n_xx_6_9_3", "trl_e_n_xx_6_8_3", "trl_e_n_xx_6_7_3", "trl_e_n_xx_6_6_3",
-    #  "trl_e_n_xx_6_6_0", "trl_e_n_xx_7_6_0", "trl_e_n_xx_8_6_0", "trl_e_n_xx_9_6_0", "trl_e_n_xx_10_6_0",
-    #  "trl_e_n_xx_10_6_3","trl_e_n_xx_10_5_3", "trl_e_n_xx_10_4_3", "trl_e_n_xx_10_3_3", "trl_e_n_xx_10_2_3",
-    #  "trl_e_n_xx_11_1_0"],
-    #  ["trl_e_n_xx_6_10_3", "trl_e_n_xx_6_9_3", "trl_e_n_xx_6_8_3", "trl_e_n_xx_6_7_3", "trl_e_n_xx_6_6_3",
-    #  "trl_e_n_xx_6_6_2", "trl_e_n_xx_5_6_2", "trl_e_n_xx_4_6_2", "trl_e_n_xx_3_6_2", "trl_e_n_xx_2_6_2",
-    #  "trl_e_n_xx_2_6_1","trl_e_n_xx_2_7_1", "trl_e_n_xx_2_8_1", "trl_e_n_xx_2_9_1", "trl_e_n_xx_2_10_1",
-    #  "trl_e_n_xx_1_11_2"]
-    ["trl_e_n_xx_1_1_0", "trl_e_n_xx_2_2_0", "trl_e_n_xx_3_2_0", "trl_e_n_xx_4_2_0", "trl_e_n_xx_5_2_0",
-     "trl_e_n_xx_6_2_0", "trl_e_n_xx_7_2_0", "trl_e_n_xx_8_2_0", "trl_e_n_xx_9_2_0", "trl_e_n_xx_10_2_0",
-     "trl_e_n_xx_11_1_0"],
-     ["exp_e_n_xx_1_1_0", "exp_e_n_xx_2_2_0", "exp_e_n_xx_3_2_0", "exp_e_n_xx_4_2_0", "exp_e_n_xx_5_2_0",
-     "exp_e_n_xx_6_2_0", "exp_e_n_xx_7_2_0", "exp_e_n_xx_8_2_0", "exp_e_n_xx_9_2_0", "exp_e_n_xx_10_2_0",
-     "exp_e_n_xx_11_1_0"]
-     
+    # Example label groups for paths (uncomment and customize as needed)
+    # "config1_0_0_north, config1_0_1_north, config1_0_2_north",
+    # ["config2_1_0_east", "config2_1_1_east", "config2_1_2_east"],
 ]
 
 
@@ -221,6 +203,10 @@ def main() -> None:
         raise ValueError(f"Parquet file missing '{POSES_COLUMN}' column required for pose data.")
 
     embedding_matrix = df["embedding"].apply(lambda v: pd.Series(v)).to_numpy()
+    if NORMALIZE_EMBEDDINGS:
+        norms = np.linalg.norm(embedding_matrix, axis=1, keepdims=True)
+        norms[norms == 0] = 1.0
+        embedding_matrix = embedding_matrix / norms
 
     reducer = umap.UMAP(
         n_components=UMAP_COMPONENTS,
@@ -275,9 +261,6 @@ def main() -> None:
     path_sequences = []
 
     if plot_dims >= 2:
-        plot_path = OUTPUT_PLOT.expanduser().resolve()
-        plot_path.parent.mkdir(parents=True, exist_ok=True)
-
         if plot_dims == 2:
             fig, ax = plt.subplots(figsize=(8, 6))
             ax.scatter(df["umap_0"], df["umap_1"], s=5, alpha=0.7)
@@ -293,8 +276,6 @@ def main() -> None:
 
         ax.set_title("UMAP Projection")
         fig.tight_layout()
-        fig.savefig(plot_path, dpi=200)
-        print(f"Saved UMAP plot to {plot_path}")
 
         if PATH_LABEL_GROUPS:
             colors = cycle(plt.rcParams["axes.prop_cycle"].by_key()["color"])

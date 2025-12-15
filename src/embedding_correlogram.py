@@ -18,17 +18,18 @@ import pandas as pd
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 TABLE_DIR = ROOT_DIR / "data/tables"
-TARGET_TABLE = TABLE_DIR / "corner-maze-render-base-images-consolidated-acute-ds-embeddings-32.parquet"
+TARGET_TABLE = TABLE_DIR / "stereo-cnn-consolidated-acute-60-barebonesNoPool-embeddings.parquet"
 EMBEDDING_COLUMN = "embedding"
 LABEL_NAME_COLUMN = "label_name"
 LABEL_ID_COLUMN = "label_id"
 LEFT_IMAGE_COLUMN = "left_eye_img"
 RIGHT_IMAGE_COLUMN = "right_eye_img"
-LABEL_LIST_PATH = TABLE_DIR / "corner-maze-render-base-images-consolidated-acute-ds-embedding-32-label-order.json"
+JSON_DIR = ROOT_DIR / "data/json"
+LABEL_LIST_PATH = JSON_DIR / f"{TARGET_TABLE.stem}.json"
 with LABEL_LIST_PATH.open("r", encoding="utf-8") as fh:
     label_id_list = json.load(fh)
 ORDER_LABEL_IDS: list[int] = label_id_list
-APPLY_LABEL_ORDER: bool = False
+APPLY_LABEL_ORDER: bool = True
 MIN_VECTOR_NORM = 1e-9
 
 
@@ -144,9 +145,10 @@ def _load_embedding_matrix(path: Path) -> tuple[np.ndarray, list[str], list[int]
 def cosine_similarity_matrix(embeddings: np.ndarray) -> np.ndarray:
     if embeddings.ndim != 2:
         raise ValueError("Embeddings matrix must be 2-D (samples x dims).")
-    norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+    centered = embeddings - embeddings.mean(axis=0, keepdims=True)
+    norms = np.linalg.norm(centered, axis=1, keepdims=True)
     norms = np.maximum(norms, MIN_VECTOR_NORM)
-    normalized = embeddings / norms
+    normalized = centered / norms
     matrix = np.matmul(normalized, normalized.T)
     return np.clip(matrix, -1.0, 1.0)
 

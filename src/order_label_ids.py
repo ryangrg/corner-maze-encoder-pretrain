@@ -8,13 +8,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Dict, Iterable, List, Sequence, Tuple
+from typing import Dict, Iterable, List, Tuple
 
 import pandas as pd
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-EMBEDDINGS_PARQUET = ROOT_DIR / "data/tables/corner-maze-render-base-images-consolidated-acute-ds-embeddings-32.parquet"
-OUTPUT_JSON = ROOT_DIR / "data/tables/corner-maze-render-base-images-consolidated-acute-ds-embedding-32-label-order.json"
+EMBEDDINGS_PARQUET = ROOT_DIR / "data/tables/stereo-cnn-consolidated-acute-60-attentionNoRelu-embeddings.parquet"
+OUTPUT_JSON = ROOT_DIR / f"data/json/{Path(EMBEDDINGS_PARQUET.stem).stem}.json"
 
 # Pose ordering template for direction 0 (x, y pairs)
 ROW_SEGMENTS = [
@@ -85,34 +85,45 @@ def _pose_sequence(direction: int) -> Iterable[Tuple[int, int, int]]:
 
 def _ordered_label_ids(df: pd.DataFrame) -> List[int]:
     pose_entries = _collect_entries(df)
-    ordered_ids: List[int] = []
-    seen_ids: set[int] = set()
 
-    for phase in PHASE_PRIORITY:
-        for direction in DIRECTIONS:
-            for pose in _pose_sequence(direction):
-                entries_by_phase = pose_entries.get(pose)
-                if not entries_by_phase:
-                    continue
-                entries = entries_by_phase.get(phase)
-                if not entries:
-                    continue
-                for label_id, label_name in sorted(entries, key=lambda item: item[1]):
-                    if label_id not in seen_ids:
-                        ordered_ids.append(label_id)
-                        seen_ids.add(label_id)
-                entries_by_phase[phase] = []
+    # Build a deterministic ordering index for every pose (x, y, direction)
+    pose_order: Dict[Tuple[int, int, int], int] = {}
+    order_idx = 0
+    for direction in DIRECTIONS:
+        for pose in _pose_sequence(direction):
+            if pose not in pose_order:
+                pose_order[pose] = order_idx
+                order_idx += 1
 
-    # Append any remaining IDs not covered by the template
-    for entries_by_phase in pose_entries.values():
-        for phase in PHASE_PRIORITY + ["other"]:
-            entries = entries_by_phase.get(phase)
+    fallback_start = order_idx
+    fallback_counter = 0
+
+    # Collect entries per phase alongside their pose order index
+    phase_entries: Dict[str, List[Tuple[int, str, int]]] = {}
+    for pose, entries_by_phase in pose_entries.items():
+        pose_idx = pose_order.get(pose)
+        if pose_idx is None:
+            pose_idx = fallback_start + fallback_counter
+            fallback_counter += 1
+        for phase, entries in entries_by_phase.items():
             if not entries:
                 continue
-            for label_id, label_name in sorted(entries, key=lambda item: item[1]):
-                if label_id not in seen_ids:
-                    ordered_ids.append(label_id)
-                    seen_ids.add(label_id)
+            phase_entries.setdefault(phase, []).extend(
+                (pose_idx, label_name, label_id) for label_id, label_name in entries
+            )
+
+    ordered_ids: List[int] = []
+    seen_ids: set[int] = set()
+    remaining_phases = [phase for phase in phase_entries if phase not in PHASE_PRIORITY]
+    for phase in PHASE_PRIORITY + sorted(remaining_phases):
+        entries = phase_entries.get(phase)
+        if not entries:
+            continue
+        for pose_idx, label_name, label_id in sorted(entries, key=lambda item: (item[0], item[1])):
+            if label_id in seen_ids:
+                continue
+            ordered_ids.append(label_id)
+            seen_ids.add(label_id)
 
     return ordered_ids
 

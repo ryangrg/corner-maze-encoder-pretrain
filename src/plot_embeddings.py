@@ -13,14 +13,24 @@ from pathlib import Path
 from typing import Callable, Iterable, Tuple
 
 import matplotlib.pyplot as plt
+from matplotlib import colors as mcolors
 from mpl_toolkits.mplot3d import Axes3D, proj3d  # noqa: F401
 import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-EMBEDDINGS_PARQUET = ROOT / "data/tables/corner-maze-render-base-images-consolidated-acute-ds-embeddings-32-umap.parquet"
-OUTPUT_PLOT = ROOT / "data/plots/corner-maze-render-base-images-consolidated-acute-ds-embeddings-32-umap.png"
+EMBEDDINGS_PARQUET = ROOT / "data/tables/stereo-cnn-consolidated-acute-60-attention-embeddings-umap.parquet"
 POSES_COLUMN = "poses"
+HOVER_LABEL_COLUMN: str = "label_name"
+COLOR_BY_POSE: bool = False
+COLOR_BY_DIRECTION: bool = False
+DIRECTION_COLOR_MAP = {
+    0: (0.2, 0.4, 0.9),  # North
+    1: (0.1, 0.7, 0.3),  # East
+    2: (0.95, 0.45, 0.2),  # South
+    3: (0.8, 0.2, 0.6),  # West
+}
+NEUTRAL_GRAY = (0.6, 0.6, 0.6)
 PATH_LABEL_GROUPS: list = [
     # Example entries copied from umap_embeddings.py
     # ["trl_e_n_xx_1_1_3", "trl_e_n_xx_1_11_2", "trl_n_n_xx_1_11_2"],
@@ -37,14 +47,32 @@ PATH_LABEL_GROUPS: list = [
     #  "trl_e_n_xx_2_6_1","trl_e_n_xx_2_7_1", "trl_e_n_xx_2_8_1", "trl_e_n_xx_2_9_1", "trl_e_n_xx_2_10_1",
     #  "trl_e_n_xx_1_11_2"]
     # ["trl_e_n_xx_6_6_0", "trl_e_n_xx_6_6_1", "trl_e_n_xx_6_6_2", "trl_e_n_xx_6_6_3"],
-     ["trl_s_n_xx_1_1_0", "trl_s_n_xx_2_2_0", "trl_s_n_xx_3_2_0", "trl_s_n_xx_4_2_0", "trl_s_n_xx_5_2_0",
-     "trl_s_n_xx_6_2_0", "trl_s_n_xx_7_2_0", "trl_s_n_xx_8_2_0", "trl_s_n_xx_9_2_0", "trl_s_n_xx_10_2_0",
-     "trl_s_n_xx_11_1_1"],
-     ["trl_s_n_xx_2_6_0", "trl_s_n_xx_3_6_0", "trl_s_n_xx_4_6_0", "trl_s_n_xx_5_6_0", "trl_s_n_xx_6_6_0",
-     "trl_e_n_xx_7_6_0", "trl_e_n_xx_8_6_0", "trl_e_n_xx_9_6_0", "trl_e_n_xx_10_6_0"],
-     ["trl_s_n_xx_1_11_0", "trl_s_n_xx_2_10_0", "trl_s_n_xx_3_10_0", "trl_s_n_xx_4_10_0", "trl_s_n_xx_5_10_0",
-     "trl_s_n_xx_6_10_0", "trl_s_n_xx_7_10_0", "trl_s_n_xx_8_10_0", "trl_s_n_xx_9_10_0", "trl_s_n_xx_10_10_0",
-     "trl_s_n_xx_11_11_0"]
+    #  ["trl_s_n_xx_1_1_0", "trl_s_n_xx_2_2_0", "trl_s_n_xx_3_2_0", "trl_s_n_xx_4_2_0", "trl_s_n_xx_5_2_0",
+    #  "trl_s_n_xx_6_2_0", "trl_s_n_xx_7_2_0", "trl_s_n_xx_8_2_0", "trl_s_n_xx_9_2_0", "trl_s_n_xx_10_2_0",
+    #  "trl_s_n_xx_11_1_1"],
+    #  ["trl_s_n_xx_2_6_0", "trl_s_n_xx_3_6_0", "trl_s_n_xx_4_6_0", "trl_s_n_xx_5_6_0", "trl_s_n_xx_6_6_0",
+    #  "trl_s_n_xx_7_6_0", "trl_s_n_xx_8_6_0", "trl_s_n_xx_9_6_0", "trl_s_n_xx_10_6_0"],
+    #  ["trl_s_n_xx_1_11_0", "trl_s_n_xx_2_10_0", "trl_s_n_xx_3_10_0", "trl_s_n_xx_4_10_0", "trl_s_n_xx_5_10_0",
+    #  "trl_s_n_xx_6_10_0", "trl_s_n_xx_7_10_0", "trl_s_n_xx_8_10_0", "trl_s_n_xx_9_10_0", "trl_s_n_xx_10_10_0",
+    #  "trl_s_n_xx_11_11_0"],
+    #  ["trl_n_x_xx_6_2_0", "trl_n_x_xx_6_3_0", "trl_n_x_xx_6_4_0", "trl_n_x_xx_6_5_0", "trl_n_x_xx_6_6_0",
+    #   "trl_n_x_xx_6_7_0", "trl_n_x_xx_6_8_0", "trl_n_x_xx_6_9_0", "trl_n_x_xx_6_10_0"], 
+       ["trl_n_n_xx_2_2_0", "trl_n_n_xx_3_2_0", "trl_n_n_xx_4_2_0", "trl_n_n_xx_5_2_0", "trl_n_n_xx_6_2_0",
+        "trl_n_n_xx_6_3_0", "trl_n_n_xx_6_4_0", "trl_n_n_xx_6_5_0", "trl_n_n_xx_6_6_0", "trl_n_n_xx_6_7_0",
+        "trl_n_n_xx_6_8_0", "trl_n_n_xx_6_9_0", "trl_n_n_xx_6_10_0", "trl_n_n_xx_5_10_0", "trl_n_n_xx_4_10_0",
+        "trl_n_n_xx_3_10_0", "trl_n_n_xx_2_10_0"],
+        # ["trl_n_n_xx_2_2_2", "trl_n_n_xx_3_2_2", "trl_n_n_xx_4_2_2", "trl_n_n_xx_5_2_2", "trl_n_n_xx_6_2_2",
+        # "trl_n_n_xx_6_3_2", "trl_n_n_xx_6_4_2", "trl_n_n_xx_6_5_2", "trl_n_n_xx_6_6_2", "trl_n_n_xx_6_7_2",
+        # "trl_n_n_xx_6_8_2", "trl_n_n_xx_6_9_2", "trl_n_n_xx_6_10_2", "trl_n_n_xx_5_10_2", "trl_n_n_xx_4_10_2",
+        # "trl_n_n_xx_3_10_2", "trl_n_n_xx_2_10_2"],
+        ["exp_x_x_xx_2_2_0", "exp_x_x_xx_3_2_0", "exp_x_x_xx_4_2_0", "exp_x_x_xx_5_2_0", "exp_x_x_xx_6_2_0",
+        "exp_x_x_xx_6_3_0", "exp_x_x_xx_6_4_0", "exp_x_x_xx_6_5_0", "exp_x_x_xx_6_6_0", "exp_x_x_xx_6_7_0",
+        "exp_x_x_xx_6_8_0", "exp_x_x_xx_6_9_0", "exp_x_x_xx_6_10_0", "exp_x_x_xx_5_10_0", "exp_x_x_xx_4_10_0",
+        "exp_x_x_xx_3_10_0", "exp_x_x_xx_2_10_0"],
+        # ["exp_x_x_xx_2_2_2", "exp_x_x_xx_3_2_2", "exp_x_x_xx_4_2_2", "exp_x_x_xx_5_2_2", "exp_x_x_xx_6_2_2",
+        # "exp_x_x_xx_6_3_2", "exp_x_x_xx_6_4_2", "exp_x_x_xx_6_5_2", "exp_x_x_xx_6_6_2", "exp_x_x_xx_6_7_2",
+        # "exp_x_x_xx_6_8_2", "exp_x_x_xx_6_9_2", "exp_x_x_xx_6_10_2", "exp_x_x_xx_5_10_2", "exp_x_x_xx_4_10_2",
+        # "exp_x_x_xx_3_10_2", "exp_x_x_xx_2_10_2"]
 ]
 
 class PathInteraction:
@@ -310,6 +338,72 @@ def _build_label_points(
     return label_to_point, label_to_images
 
 
+def _extract_pose_coords(label: str) -> Tuple[int, int] | None:
+    tokens = str(label).split("_")
+    if len(tokens) < 3:
+        return None
+    try:
+        x = int(tokens[-3])
+        y = int(tokens[-2])
+    except ValueError:
+        return None
+    return x, y
+
+
+def _pose_color_array(labels: Iterable[str]) -> np.ndarray | None:
+    coords = [_extract_pose_coords(label) for label in labels]
+    valid = [coord for coord in coords if coord is not None]
+    if not valid:
+        return None
+    x_vals = np.array([coord[0] for coord in valid], dtype=float)
+    y_vals = np.array([coord[1] for coord in valid], dtype=float)
+    x_min, x_span = x_vals.min(), max(x_vals.max() - x_vals.min(), 1.0)
+    y_min, y_span = y_vals.min(), max(y_vals.max() - y_vals.min(), 1.0)
+
+    colors = []
+    for coord in coords:
+        if coord is None:
+            colors.append((0.5, 0.5, 0.5))
+            continue
+        x_norm = (coord[0] - x_min) / x_span
+        y_norm = (coord[1] - y_min) / y_span
+        hue = x_norm
+        saturation = 0.35 + 0.65 * (1.0 - abs(0.5 - y_norm) * 2.0)
+        value = 0.5 + 0.5 * y_norm
+        hsv = (
+            hue,
+            max(0.0, min(1.0, saturation)),
+            max(0.0, min(1.0, value)),
+        )
+        colors.append(mcolors.hsv_to_rgb(hsv))
+    return np.array(colors)
+
+
+def _direction_color_array(labels: Iterable[str]) -> np.ndarray:
+    colors = []
+    for raw_label in labels:
+        tokens = [token.strip().lower() for token in str(raw_label).split("_") if token]
+        if len(tokens) < 4:
+            colors.append(NEUTRAL_GRAY)
+            continue
+        phase = tokens[0]
+        if phase != "trl":
+            colors.append(NEUTRAL_GRAY)
+            continue
+        cue_token = tokens[2]
+        if cue_token == "x":
+            colors.append(NEUTRAL_GRAY)
+            continue
+        direction_token = tokens[-1]
+        try:
+            direction_idx = int(direction_token)
+        except ValueError:
+            colors.append(NEUTRAL_GRAY)
+            continue
+        colors.append(DIRECTION_COLOR_MAP.get(direction_idx, NEUTRAL_GRAY))
+    return np.array(colors, dtype=float)
+
+
 def main() -> None:
     parquet_path = EMBEDDINGS_PARQUET.expanduser().resolve()
     if not parquet_path.exists():
@@ -326,20 +420,36 @@ def main() -> None:
     base_nodes = [{"label": label, "point": point, "path_index": None, "node_index": None} for label, point in label_to_point.items()]
     path_sequences = []
 
-    plot_path = OUTPUT_PLOT.expanduser().resolve()
-    plot_path.parent.mkdir(parents=True, exist_ok=True)
-
     fig = plt.figure(figsize=(12.5, 6.5))
     grid = fig.add_gridspec(1, 3, width_ratios=[2.2, 1.0, 1.0], wspace=0.08)
 
+    scatter_colors = None
+    if COLOR_BY_DIRECTION and HOVER_LABEL_COLUMN in df.columns:
+        scatter_colors = _direction_color_array(df[HOVER_LABEL_COLUMN])
+    elif COLOR_BY_POSE and HOVER_LABEL_COLUMN in df.columns:
+        scatter_colors = _pose_color_array(df[HOVER_LABEL_COLUMN])
+
     if plot_dims == 2:
         scatter_ax = fig.add_subplot(grid[0, 0])
-        scatter_ax.scatter(df["umap_0"], df["umap_1"], s=5, alpha=0.7)
+        scatter_ax.scatter(
+            df["umap_0"],
+            df["umap_1"],
+            s=5,
+            alpha=0.7,
+            c=scatter_colors,
+        )
         scatter_ax.set_xlabel("UMAP 0")
         scatter_ax.set_ylabel("UMAP 1")
     else:
         scatter_ax = fig.add_subplot(grid[0, 0], projection="3d")
-        scatter_ax.scatter(df["umap_0"], df["umap_1"], df["umap_2"], s=5, alpha=0.7)
+        scatter_ax.scatter(
+            df["umap_0"],
+            df["umap_1"],
+            df["umap_2"],
+            s=5,
+            alpha=0.7,
+            c=scatter_colors,
+        )
         scatter_ax.set_xlabel("UMAP 0")
         scatter_ax.set_ylabel("UMAP 1")
         scatter_ax.set_zlabel("UMAP 2")
@@ -452,10 +562,6 @@ def main() -> None:
                 else:
                     xs, ys, zs = zip(*((pt[0], pt[1], pt[2]) for pt in coords))
                     scatter_ax.plot(xs, ys, zs, marker="o", linestyle="-", linewidth=2, color=color)
-
-    fig.tight_layout()
-    fig.savefig(plot_path, dpi=200)
-    print(f"Saved UMAP plot to {plot_path}")
 
     if path_sequences or base_nodes:
         interaction = PathInteraction(

@@ -32,7 +32,7 @@ from matplotlib.widgets import Button, TextBox
 import dataset_io
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_DATASET_DIR = ROOT_DIR / "data/datasets/corner-maze-render-base-images-duplicate-groups-partitioned-52-1-ds"
+DEFAULT_DATASET_DIR = ROOT_DIR / "data/datasets/base-images-groups-no-partition-52-1-ds"
 DISPLAY_DEVICE: str = "cpu"
 
 

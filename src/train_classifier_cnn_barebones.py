@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
-image_classifier_cnn_01.py
+image_classifier_cnn_barebones.py
+
+Super simple barebones version of train_classifier_cnn.py to see what kind of
+embedding space get and build up from here.
 
 Train a compact StereoConvNet on the full stereo dataset bundle, ensuring every
 image remains in the training set. This script is notebook-friendly and bundles
@@ -26,14 +29,14 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 DATASET_PATH = ROOT_DIR / "data/datasets/base-images-consolidated-partitioned-52-1-acute-ds"
 MAX_EPOCHS: int = 1000000
 BATCH_SIZE: int = 0  # 0 or negative → full batch (memorization)
-LEARNING_RATE: float = 1e-4
+LEARNING_RATE: float = 1e-3
 WEIGHT_DECAY: float = 0.0
-TARGET_ACCURACY: float = 0.99
+TARGET_ACCURACY: float = 1.0
 PRINT_EVERY: int = 1
 SEED: int = 42
 DEVICE: str | None = None  # "cuda", "cpu", "mps", or None for auto
 EMBEDDING_DIM: int = 60
-MODEL_SUFFIX: str = f"consolidated-acute-{EMBEDDING_DIM}-barebones"
+MODEL_SUFFIX: str = f"consolidated-acute-{EMBEDDING_DIM}-barebonesNoPool"
 MODEL_OUTPUT_DIR = ROOT_DIR / "data/models/"
 
 
@@ -91,7 +94,7 @@ class StereoConvNet(nn.Module):
             nn.Conv2d(32, 60, kernel_size=3, padding=1),
             #nn.LeakyReLU(inplace=True),
             #nn.ReLU(inplace=True),
-            #nn.MaxPool2d(kernel_size=2, stride=2),
+            #nn.MaxPool2d(kernel_size=2, stride=2), # 32x32 -> 16x16
             # removing last maxpool to retain more spatial info for small embedding
 
             nn.AdaptiveAvgPool2d(1),
